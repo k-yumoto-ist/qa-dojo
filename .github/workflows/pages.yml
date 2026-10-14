@@ -9,6 +9,7 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  deployments: write
 
 concurrency:
   group: github-pages
@@ -41,12 +42,24 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Clear stuck Pages deployment from the timed-out run
+      - name: Clear stuck deployment for timed-out commit
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh api --method POST \
-            "repos/${GITHUB_REPOSITORY}/pages/deployments/3cc983108a055253d565bf85816771bd6a0b2571/cancel"
+          stuck_sha=3cc983108a055253d565bf85816771bd6a0b2571
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/pages/deployments/${stuck_sha}/cancel"
+          deployment_ids=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/deployments?per_page=100" \
+            --jq ".[] | select(.sha == \"${stuck_sha}\") | .id")
+          if [ -n "$deployment_ids" ]; then
+            while IFS= read -r deployment_id; do
+              echo "Clearing stale deployment ID $deployment_id (commit $stuck_sha)"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}/statuses" \
+                -f state=inactive -f description="Clearing timed-out GitHub Pages deployment"
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/deployments/${deployment_id}"
+            done <<< "$deployment_ids"
+          else
+            echo "No matching legacy deployment record; cancellation requested for Pages deployment $stuck_sha"
+          fi
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
