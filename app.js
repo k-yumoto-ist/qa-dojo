@@ -1,7 +1,8 @@
 (() => {
   "use strict";
 
-  const KEY = "qa-dojo:training:v1";
+  const EXPLORATORY = new URLSearchParams(window.location.search).get("mode") === "explore";
+  const KEY = EXPLORATORY ? "qa-dojo:explore:v1" : "qa-dojo:training:v1";
   const CATEGORIES = [
     {id:"quantity", name:"数量・入力範囲"},
     {id:"shipping", name:"送料・境界値"},
@@ -24,7 +25,7 @@
 
   function blank() {
     return {
-      cases:[], logs:[], reports:[], observed:[], progressed:0,
+      cases:[], logs:[], reports:[], observed:[], notes:[], progressed:0,
       mock:{quantity:"2",coupon:"",email:"qa@example.com",memo:""},
       lastResult:"",resultType:"",orderCount:0
     };
@@ -39,6 +40,7 @@
         mock:Object.assign(fresh.mock,raw.mock || {}),
         cases:raw.cases.slice(-100),
         logs:raw.logs.slice(-100),
+        notes:Array.isArray(raw.notes) ? raw.notes.slice(-100) : [],
         reports:raw.reports.slice(-100),
         observed:raw.observed.filter(id => DEFECTS.includes(id))
       });
@@ -70,10 +72,10 @@
   }
   function observed() { return new Set(data.observed.filter(id => DEFECTS.includes(id))); }
   function score() {
-    const categories = new Set(data.cases.map(c => c.category).filter(id => CATEGORIES.some(x => x.id === id)));
-    const design = Math.min(3,categories.size) * 10;
-    const execute = observed().size * 8;
-    const report = Math.min(5,data.reports.filter(r => r.accepted).length) * 6;
+    const categories = new Set(data.cases.map(c=>c.category).filter(id=>CATEGORIES.some(x=>x.id===id)));
+    const design = EXPLORATORY ? 0 : Math.min(3,categories.size)*10;
+    const execute = observed().size*(EXPLORATORY ? 10 : 8);
+    const report = Math.min(5,data.reports.filter(r=>r.accepted).length)*(EXPLORATORY ? 10 : 6);
     return {design,execute,report,total:design+execute+report};
   }
   function progression() {
@@ -86,7 +88,7 @@
   function cardStats() {
     const s = score();
     return '<div class="stats">' +
-      stat("テスト設計", data.cases.length,"件","設計済みのテストケース","◇","") +
+      stat(EXPLORATORY ? "探索メモ" : "テスト設計", EXPLORATORY ? data.notes.length : data.cases.length,"件",EXPLORATORY ? "打鍵中の気づき" : "設計済みのテストケース","◇","") +
       stat("不具合の観測", observed().size,"件","操作ログから検出","◎","amber") +
       stat("不具合報告", data.reports.filter(r=>r.accepted).length,"件","受理された報告","▤","blue") +
       stat("獲得スコア",s.total,"/ 100","ルールベース採点","✦","purple") + '</div>';
@@ -96,10 +98,16 @@
       '<div class="stat-number">'+n+'<span class="stat-unit">'+unit+'</span></div><div class="stat-note">'+note+'</div></div>';
   }
   function progressPercent() {
+    if(EXPLORATORY) {
+      if (!data.logs.length) return 0;
+      if (!data.reports.some(r=>r.accepted)) return 50;
+      if (data.reports.filter(r=>r.accepted).length<3) return 80;
+      return 100;
+    }
     if (!data.cases.length) return 0;
     if (!data.logs.length) return 25;
-    if (!data.reports.some(r => r.accepted)) return 60;
-    if (data.reports.filter(r=>r.accepted).length < 3) return 80;
+    if (!data.reports.some(r=>r.accepted)) return 60;
+    if (data.reports.filter(r=>r.accepted).length<3) return 80;
     return 100;
   }
   function dashboard() {
@@ -108,22 +116,24 @@
       '<p class="page-lead">知識を覚えるだけでは終わらない。「考える → 試す → 発見する」を繰り返そう。</p>' +
       '<section class="hero"><div class="hero-copy"><div class="eyebrow">YOUR NEXT CHALLENGE</div>' +
       '<h1>仕様を読み解け。<br>不具合を見つけ出せ。</h1>' +
-      '<p>本物そっくりのアプリに、意図的な不具合を仕込んである。<br>テスト設計から実機検証、報告まで。あなたの目で確かめよう。</p>' +
-      '<button class="btn btn-primary" data-action="start">修行を始める <span aria-hidden="true">→</span></button>' +
+      '<p>本物そっくりのアプリに、意図的な不具合を仕込んである。<br>設計から進めるか、すぐに操作して探索するか。あなたの目で確かめよう。</p>' +
+      '<a class="btn '+(EXPLORATORY ? "btn-hero-outline":"btn-primary")+'" href="./">テスト設計型 →</a> ' +
+      '<a class="btn '+(EXPLORATORY ? "btn-primary":"btn-hero-outline")+'" href="./?mode=explore">探索的テスト →</a>' +
       '</div><div class="hero-art" aria-hidden="true"><div class="hero-glyph">Q</div></div></section>' +
+      '<div class="section-head"><h2>'+(EXPLORATORY ? "探索的テスト" : "テスト設計型")+'の修行記録</h2><span class="hint">モードごとに記録を保存</span></div>' +
       cardStats() +
       '<div class="section-head"><h2>進行中の修行</h2><span class="hint">CONTINUE LEARNING</span></div>' +
       '<div class="two-col"><div class="mission-card"><div class="row-between"><span class="pill">LEVEL 01 · BEGINNER</span><span class="pill orange">実践演習</span></div>' +
-      '<h3 class="title">ECサイトの注文フォーム</h3><p>仕様に潜む境界値・計算・入力チェックを見抜く。</p>' +
+      '<h3 class="title">ECサイトの注文フォーム</h3><p>'+(EXPLORATORY?"仕様だけで打鍵し、気づいたことを探索メモに残す。":"仕様に潜む境界値・計算・入力チェックを見抜く。")+'</p>' +
       '<div class="mission-meta"><span>◷ 目安 30〜45分</span><span>◈ 仕様7項目</span><span>▣ 意図的な不具合あり</span></div>' +
       '<div class="progress-track"><div class="progress-fill" style="width:'+progressPercent()+'%"></div></div>' +
       '<div class="progress-caption"><span>修行の進捗</span><span>'+progressPercent()+'%</span></div>' +
-      '<div class="actions"><span class="micro">設計 → 操作 → 報告</span><button class="btn btn-dark" data-action="start">'+(data.cases.length ? "修行を再開する" : "挑戦する")+' →</button></div></div>' +
-      '<div class="roadmap-card"><div class="row-between"><h3 class="mt-0">修行の進め方</h3><span class="pill gray">4 STEPS</span></div>' +
+      '<div class="actions"><span class="micro">'+(EXPLORATORY?"仕様 → 操作 → 報告":"設計 → 操作 → 報告")+'</span><button class="btn btn-dark" data-action="start">'+(data.logs.length || data.cases.length ? "修行を再開する" : "挑戦する")+' →</button></div></div>' +
+      '<div class="roadmap-card"><div class="row-between"><h3 class="mt-0">修行の進め方</h3><span class="pill gray">'+(EXPLORATORY?"3 STEPS":"4 STEPS")+'</span></div>' +
       roadmapStep("01","仕様を読み解く","前提条件と期待動作を把握") +
-      roadmapStep("02","テストを設計する","観点・手順・期待結果を整理") +
-      roadmapStep("03","操作して検証する","実際に入力・実行して観察") +
-      roadmapStep("04","不具合を報告する","再現できる形で結果を記録") +
+      (EXPLORATORY ? "" : roadmapStep("02","テストを設計する","観点・手順・期待結果を整理")) +
+      roadmapStep(EXPLORATORY ? "02":"03","操作して検証する","実際に入力・実行して観察") +
+      roadmapStep(EXPLORATORY ? "03":"04","不具合を報告する","再現できる形で結果を記録") +
       '</div></div>' +
       '<div class="section-head"><h2>この道場で鍛える3つの力</h2><span class="hint">LEARNING OUTCOMES</span></div>' +
       '<div class="chapter-list">' +
@@ -139,24 +149,22 @@
   }
   function dojo() {
     const titles = ["まずは、仕様を読み解こう。","自分だけのテストを設計しよう。","アプリを実際に操作してみよう。","発見した不具合を報告しよう。"];
-    const leads = [
-      "何が正しい状態なのかを把握する。テストはそこから始まる。",
+    const leads = ["何が正しい状態なのかを把握する。テストはそこから始まる。",
       "テストケースは「何を、どのように試し、どうなれば正しいか」を明確にするもの。",
-      "下の模擬アプリは、わざと仕様どおりに動かない部分がある。実際に入力して確かめよう。",
-      "起きた事実と期待動作を比較し、他の人が再現できる報告を作ろう。"
-    ];
-    let tabs = "";
-    STEPS.forEach((title,i) => {
-      const blocked = i >= 2 && !data.cases.length;
-      tabs += '<button type="button" class="step-tab '+(step===i?"current":i < data.progressed?"done":"")+'" data-action="step" data-step="'+i+'" '+(blocked?'disabled title="テストケースを1件以上作成してください"':"")+'>' +
-        '<span class="step-no">'+(i < data.progressed ? "✓" : i+1)+'</span><span>'+esc(title)+'</span></button>';
+      EXPLORATORY ? "仕様を手掛かりに自由に試そう。発見や疑問は探索メモに残せる。" : "模擬アプリの挙動を実際に入力して確かめよう。",
+      "起きた事実と期待動作を比較し、他の人が再現できる報告を作ろう。"];
+    const sequence=EXPLORATORY ? [0,2,3] : [0,1,2,3];
+    let tabs="";
+    sequence.forEach((id,i)=>{
+      const blocked=!EXPLORATORY && id>=2 && !data.cases.length;
+      tabs+='<button type="button" class="step-tab '+(step===id?"current":id<data.progressed?"done":"")+'" data-action="step" data-step="'+id+'" '+(blocked?'disabled title="テストケースを1件以上作成してください"':"")+'><span class="step-no">'+(id<data.progressed?"✓":i+1)+'</span><span>'+esc(STEPS[id])+'</span></button>';
     });
-    let page = [specPage,designPage,labPage,reportPage][step]();
-    return '<div class="row-between wrap-mobile"><div><div class="eyebrow">TRAINING / LEVEL 01 · E-COMMERCE</div>' +
-      '<h1 class="page-title">ECサイトの注文フォーム</h1><p class="page-lead mb-0">仕様とアプリの「差分」を、あなたの手で見つけよう。</p></div>' +
+    const page=[specPage,designPage,labPage,reportPage][step]();
+    return '<div class="row-between wrap-mobile"><div><div class="eyebrow">TRAINING / LEVEL 01 · '+(EXPLORATORY?"EXPLORATORY":"TEST DESIGN")+'</div>' +
+      '<h1 class="page-title">ECサイトの注文フォーム</h1><p class="page-lead mb-0"><span class="pill">'+(EXPLORATORY?"探索的テスト":"テスト設計型")+'</span>　仕様とアプリの差分を見つけよう。</p></div>' +
       '<button class="btn btn-outline btn-sm" data-nav="dashboard">← ダッシュボードへ</button></div>' +
-      '<section class="step-head"><div class="eyebrow">STEP '+String(step+1).padStart(2,"0")+' / 04</div>' +
-      '<h2>'+titles[step]+'</h2><p>'+leads[step]+'</p><div class="steps" role="navigation" aria-label="演習ステップ">'+tabs+'</div></section>' + page;
+      '<section class="step-head"><div class="eyebrow">STEP '+String(sequence.indexOf(step)+1).padStart(2,"0")+' / '+String(sequence.length).padStart(2,"0")+'</div>' +
+      '<h2>'+titles[step]+'</h2><p>'+leads[step]+'</p><div class="steps '+(EXPLORATORY?"exploratory":"")+'" role="navigation" aria-label="演習ステップ">'+tabs+'</div></section>' + page;
   }
   function nextActions(back,next,nextLabel) {
     return '<div class="actions"><button class="btn btn-outline" data-action="step" data-step="'+back+'">← 前のステップ</button>' +
@@ -168,12 +176,12 @@
       '<div class="spec-row"><span class="spec-id">'+s.id+'</span><div><strong>'+s.title+'</strong><p>'+s.body+'</p></div></div>'
     ).join("");
     return '<div class="layout-aside"><div><section class="panel"><div class="panel-title"><h3>注文フォーム 機能仕様書</h3><span class="pill">SPEC v1.0</span></div>' +
-      '<p>あなたはECサイトのQA担当です。以下の仕様に基づいてテストを設計し、実装が仕様どおりか確認してください。</p>' +
-      rows+'</section>'+nextActions(0,1,"テスト設計へ進む")+'</div>' +
-      '<aside class="aside-stack"><div class="help-panel"><h3>◈ テスターへのヒント</h3><p>すぐに画面を操作する前に、まず「何を確認すべきか」を考えてみよう。</p>' +
+      '<p>あなたはECサイトのQA担当です。以下の仕様を読み、'+(EXPLORATORY?'気になったところから自由に実機操作してください。':'テストを設計して実装を確認してください。')+'</p>' +
+      rows+'</section>'+nextActions(0,EXPLORATORY ? 2 : 1,EXPLORATORY ? "アプリを操作する" : "テスト設計へ進む")+'</div>' +
+      '<aside class="aside-stack"><div class="help-panel"><h3>◈ テスターへのヒント</h3><p>'+(EXPLORATORY?'仕様を読んだら、まず手を動かしてみよう。気づきは探索メモに保存できます。':'すぐに操作する前に、まず「何を確認すべきか」を考えてみよう。')+'</p>' +
       '<ul><li>境界値の前後で何が変わる？</li><li>入力が不正だったらどうなる？</li><li>複数条件が組み合わさると？</li><li>期待結果を数字で説明できる？</li></ul>' +
       '<p>不具合の個数や答えは公開しません。</p></div><div class="panel mt-20"><h3>修行のゴール</h3>' +
-      '<p>テストケースを記録し、実際に画面を操作し、発見した不具合を再現可能な形で報告すること。</p>' +
+      '<p>'+(EXPLORATORY?'テスト設計なしで実機操作し、気づいた不具合を再現可能な形で報告すること。':'テストケースを記録し、操作して不具合を報告すること。')+'</p>' +
       '<span class="pill gray">AI採点なし・ローカル保存</span></div></aside></div>';
   }
   function categoryOptions(defaultLabel) {
@@ -214,7 +222,7 @@
     return {qty,subtotal,shipping,discount,total:Math.max(0,subtotal+shipping-discount),coupon};
   }
   function labPage() {
-    if (!data.cases.length) {
+    if (!EXPLORATORY && !data.cases.length) {
       return '<div class="panel"><h3>先にテストケースを作成してください</h3><p>テスト設計を1件以上登録すると模擬アプリを操作できます。</p><button class="btn btn-dark" data-action="step" data-step="1">テスト設計へ</button></div>';
     }
     const t = totals();
@@ -223,7 +231,7 @@
         '<div class="log-item"><time>'+esc(fmtDate(log.at))+'</time><strong>'+esc(log.action)+'</strong>' +
         '<p>'+esc(log.detail)+'</p></div>').join("")+'</div>' :
       '<div class="empty-state"><span class="empty-icon">◎</span>操作ログはまだありません。<br>「計算結果を記録」か「注文を確定」を試そう。</div>';
-    return '<div class="exercise-guide">◈ 実機検証モード：このフォームには<strong>意図的な不具合</strong>があります。仕様書と照らし合わせながら値を変え、操作結果を観察してください。</div>' +
+    return '<div class="exercise-guide">◈ '+(EXPLORATORY?'探索的テスト：テスト設計なしで自由に打鍵し、気づいたことを探索メモに残そう。':'実機検証モード：仕様をもとに操作しよう。')+' このフォームには<strong>意図的な不具合</strong>があります。</div>' +
       '<div class="lab-grid"><section><div class="mock-browser"><div class="browser-bar"><i class="browser-dot"></i><i class="browser-dot"></i><i class="browser-dot"></i>' +
       '<span class="browser-url">demo.coffee-market.test / checkout</span></div>' +
       '<div class="store-banner"><small>COFFEE MARKET</small>注文情報の入力</div><div class="store-content">' +
@@ -246,10 +254,16 @@
       '<aside><section class="panel"><div class="panel-title"><h3>操作ログ</h3><span class="pill gray">直近8件</span></div>' +
       '<p>実行した入力と結果が自動で記録されます。気づいた点を仕様書と照合しよう。</p>'+logs+
       '<div class="actions"><span class="micro">累計 '+data.logs.length+' 操作</span><button class="btn btn-outline btn-sm" data-action="clear-logs">ログを消去</button></div></section>' +
+      (EXPLORATORY ? '<section class="panel"><div class="panel-title"><h3>探索メモ</h3><span class="pill gray">'+data.notes.length+' 件</span></div>' +
+      '<p>何を試したか、気になった点、次に試すことを自由に残そう。メモは採点対象外です。</p>' +
+      '<form id="note-form"><div class="field"><label for="note-content">気づき・疑問・次の仮説</label><textarea id="note-content" name="content" maxlength="1000" required placeholder="例：数量2の場合だけ送料が不自然。前後の値でも試したい。"></textarea></div>' +
+      '<button class="btn btn-dark btn-sm" type="submit">＋ メモを保存</button></form>' +
+      (data.notes.length ? '<div class="divider"></div><div class="log-list">'+data.notes.slice().reverse().slice(0,10).map(n=>'<div class="log-item"><time>'+esc(fmtDate(n.at))+'</time><p>'+esc(n.content)+'</p></div>').join("")+'</div>' : '') +
+      '</section>' : '') +
       '<div class="help-panel"><h3>検証時のチェックポイント</h3>' +
       '<p>「計算結果を記録」は現在の金額を記録します。「注文を確定する」は入力バリデーションも確認できます。</p>' +
       '<p>意図的な不具合が観測されたかどうかは内部で記録されます。答えは不具合報告時に照合します。</p></div></aside></div>' +
-      nextActions(1,3,"不具合報告へ進む");
+      nextActions(EXPLORATORY ? 0 : 1,3,"不具合報告へ進む");
   }
   function scoreMeter(label,value,max) {
     return '<div class="score-meter"><div class="row-between"><span>'+label+'</span><span>'+value+' / '+max+'</span></div><div class="progress-track">' +
@@ -276,7 +290,7 @@
       nextActions(2,null)+'</div><aside class="aside-stack"><section class="panel"><h3>今回の修行スコア</h3>' +
       '<div class="score-ring" style="--score:'+s.total+'%"><div class="score-inner"><strong>'+s.total+'</strong><span>/ 100 POINTS</span></div></div>' +
       '<p class="right" style="text-align:center"><span class="pill">'+progression()+'</span></p>' +
-      scoreMeter("設計した観点",s.design,30)+scoreMeter("観測した不具合",s.execute,40)+scoreMeter("受理された報告",s.report,30) +
+      (EXPLORATORY?"":scoreMeter("設計した観点",s.design,30))+scoreMeter("観測した不具合",s.execute,EXPLORATORY?50:40)+scoreMeter("受理された報告",s.report,EXPLORATORY?50:30) +
       '<div class="divider"></div><p class="micro">自動判定は「操作で不具合が再現されたか」と「対象観点が一致するか」のみ確認します。文章の正しさは採点しません。</p></section>' +
       '<div class="help-panel"><h3>報告をより良くするには</h3><ul><li>数値を曖昧にせず明記する</li><li>期待結果と実際の結果を分ける</li><li>再現可能な手順を番号付きで書く</li><li>仕様書の該当条件と結びつける</li></ul></div></aside></div>';
   }
@@ -285,16 +299,18 @@
     const categorySet=new Set(data.cases.map(c=>c.category));
     return '<div class="eyebrow">YOUR LEARNING RECORD</div><h1 class="page-title">修行の記録</h1>' +
       '<p class="page-lead">自分の成長の跡を、振り返ろう。すべての記録はこのブラウザに保存されています。</p>' +
-      cardStats()+'<div class="section-head"><h2>レベル 01 の進捗</h2><span class="pill">'+progression()+'</span></div>' +
+      '<div class="mode-switch"><a class="btn '+(EXPLORATORY?"btn-outline":"btn-dark")+'" href="./">テスト設計型</a><a class="btn '+(EXPLORATORY?"btn-dark":"btn-outline")+'" href="./?mode=explore">探索的テスト</a></div>' +
+      cardStats()+'<div class="section-head"><h2>'+(EXPLORATORY?"探索的テスト":"テスト設計型")+' · レベル 01 の進捗</h2><span class="pill">'+progression()+'</span></div>' +
       '<div class="record-grid"><section class="record-card"><h3>スキルスコア</h3>' +
-      scoreMeter("テスト設計",s.design,30)+scoreMeter("実機検証",s.execute,40)+scoreMeter("不具合報告",s.report,30) +
+      (EXPLORATORY?"":scoreMeter("テスト設計",s.design,30))+scoreMeter("実機検証",s.execute,EXPLORATORY?50:40)+scoreMeter("不具合報告",s.report,EXPLORATORY?50:30) +
       '<p>合計 <strong>'+s.total+' / 100点</strong></p><button class="btn btn-dark" data-action="start">修行に戻る →</button></section>' +
       '<section class="record-card"><h3>修行ログ</h3><ul class="record-list">' +
-      '<li>作成したテストケース：<b>'+data.cases.length+'件</b></li><li>テスト設計の観点：<b>'+categorySet.size+'種類</b></li>' +
+      (EXPLORATORY ? '<li>探索メモ：<b>'+data.notes.length+'件</b></li>' :
+      '<li>作成したテストケース：<b>'+data.cases.length+'件</b></li><li>テスト設計の観点：<b>'+categorySet.size+'種類</b></li>') +
       '<li>アプリ操作：<b>'+data.logs.length+'回</b></li><li>確認した不具合：<b>'+observed().size+'種類</b></li>' +
       '<li>不具合報告：<b>'+data.reports.length+'件</b></li><li>受理された報告：<b>'+data.reports.filter(r=>r.accepted).length+'件</b></li>' +
       '</ul><div class="divider"></div><div class="actions"><button class="btn btn-outline btn-sm" data-action="export">記録をJSONで保存 ↓</button>' +
-      '<button class="btn btn-danger btn-sm" data-action="reset">すべてリセット</button></div></section></div>' +
+      '<button class="btn btn-danger btn-sm" data-action="reset">このモードの記録をリセット</button></div></section></div>' +
       '<div class="alert info mt-20">このアプリにログインやクラウド同期はありません。ブラウザのデータ消去や端末変更で記録が失われます。必要に応じてJSONを書き出してください。</div>';
   }
   function render() {
@@ -312,9 +328,17 @@
   }
   function toStep(n) {
     if (!Number.isInteger(n)||n<0||n>3) return;
-    if (n>=2&&!data.cases.length) {showToast("先にテストケースを1件以上登録してください");return;}
+    if (EXPLORATORY && n === 1) return;
+    if (!EXPLORATORY && n>=2&&!data.cases.length) {showToast("先にテストケースを1件以上登録してください");return;}
     view="dojo";step=n;data.progressed=Math.max(data.progressed,n);
     render();window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function registerNote(form) {
+    if(!EXPLORATORY)return;
+    const content=String(new FormData(form).get("content")||"").trim();
+    if(content.length<3){showToast("3文字以上入力してください");return;}
+    data.notes.push({at:new Date().toISOString(),content:content.slice(0,1000)});
+    data.notes=data.notes.slice(-100);render();showToast("探索メモを保存しました");
   }
   function registerCase(form) {
     const f=new FormData(form);
@@ -418,10 +442,10 @@
       "報告を保存しました。該当観点の操作・再現を再確認してください。");
   }
   function exportData() {
-    const payload=JSON.stringify({app:"QA Dojo",version:1,exportedAt:new Date().toISOString(),training:data},null,2);
+    const payload=JSON.stringify({app:"QA Dojo",version:2,mode:EXPLORATORY?"explore":"classic",exportedAt:new Date().toISOString(),training:data},null,2);
     const url=URL.createObjectURL(new Blob([payload],{type:"application/json"}));
     const anchor=document.createElement("a");
-    anchor.href=url;anchor.download="qa-dojo-training.json";
+    anchor.href=url;anchor.download="qa-dojo-"+(EXPLORATORY?"explore":"design")+"-training.json";
     document.body.appendChild(anchor);anchor.click();anchor.remove();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
     showToast("修行の記録を書き出しました");
@@ -431,6 +455,7 @@
   });
   document.addEventListener("submit",e => {
     if (e.target.id==="case-form"){e.preventDefault();registerCase(e.target);}
+    if (e.target.id==="note-form"){e.preventDefault();registerNote(e.target);}
     if (e.target.id==="report-form"){e.preventDefault();registerReport(e.target);}
   });
   document.addEventListener("click",e => {
@@ -445,7 +470,7 @@
       case "remove-case":{
         const id=actionEl.getAttribute("data-id");
         data.cases=data.cases.filter(c=>c.id!==id);
-        if(!data.cases.length && step>=2)step=1;
+        if(!EXPLORATORY && !data.cases.length && step>=2)step=1;
         render();showToast("テストケースを削除しました");break;
       }
       case "calculate":calculate();break;
@@ -457,7 +482,7 @@
         }break;
       case "export":exportData();break;
       case "reset":
-        if(window.confirm("テストケース・操作ログ・報告・スコアをすべて削除しますか？この操作は取り消せません。")){
+        if(window.confirm("現在のモードの記録をすべて削除しますか？もう一方のモードの記録は消えません。この操作は取り消せません。")){
           data=blank();view="dashboard";step=0;render();showToast("修行の記録をリセットしました");
         }break;
     }
