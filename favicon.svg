@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="QA道場">
+  <rect width="64" height="64" rx="14" fill="#2cb99b"/>
+  <circle cx="29" cy="33" r="15" fill="none" stroke="#10253c" stroke-width="9"/>
+  <path d="M36.5 40.5 44.5 48.5" fill="none" stroke="#10253c" stroke-width="8" stroke-linecap="round"/>
+  <path d="m49 10 2 5.5 5.5 2-5.5 2L49 25l-2-5.5-5.5-2 5.5-2z" fill="#fff"/>
+</svg>
