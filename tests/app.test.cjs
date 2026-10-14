@@ -6,9 +6,9 @@ const fs=require('node:fs');
 const path=require('node:path');
 const source=name=>fs.readFileSync(path.join(__dirname,'..',name),'utf8');
 function app(id,explore,storage=new Map()) {
-  const events={},elements=new Map();
+  const events={},elements=new Map(),location={search:`?app=${id}${explore?'&mode=explore':''}`};
   for(const id of ['main','toast','breadcrumb'])elements.set(id,{innerHTML:'',textContent:'',classList:{add(){},remove(){}}});
-  const context={window:{location:{search:`?app=${id}${explore?'&mode=explore':''}`},scrollTo(){},confirm:()=>true},
+  const context={window:{location,scrollTo(){},confirm:()=>true},
     URLSearchParams,Date,setTimeout:()=>0,clearTimeout(){},
     localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
     document:{getElementById:id=>elements.get(id)||null,querySelectorAll:()=>[],addEventListener:(n,fn)=>events[n]=fn},
@@ -20,6 +20,8 @@ function app(id,explore,storage=new Map()) {
     html:()=>elements.get('main').innerHTML,
     click:(action,extra={})=>click({'data-action':action,...extra}),
     step:n=>click({'data-action':'step','data-step':String(n)}),
+    choose:(kind,value)=>events.change({target:{closest:selector=>selector==='[data-home-picker]'?{getAttribute:()=>kind,value}:null}}),
+    location:()=>location.href,
     input:(key,value,type='text')=>events.input({target:{closest:()=>({getAttribute:()=>key,value,type,checked:value==='yes'})}}),
     submit:(id,values)=>events.submit({preventDefault(){},target:{id,values}}),
     storage,key:`qa-dojo:${explore?'explore':'training'}:v1${id==='checkout'?'':':'+id}`,
@@ -30,8 +32,10 @@ const design={title:'境界条件を確認する',category:'other',steps:'仕様
 test('all five apps render and execute in both modes, preserving design gate',()=>{
   for(const id of ['checkout','booking','signup','search','expense'])for(const explore of [false,true]) {
     const a=app(id,explore);
-    assert.equal((a.html().match(/class="mission-option /g)||[]).length,5);
-    assert.ok(a.html().includes('app=booking'+(explore?'&amp;mode=explore':'')));
+    assert.equal((a.html().match(/<option value="(?:checkout|booking|signup|search|expense)"/g)||[]).length,5);
+    assert.ok(a.html().includes('data-home-picker="app"'));
+    assert.ok(a.html().indexOf('data-action="start"')<a.html().indexOf('<details class="home-details"'));
+    assert.ok(a.html().includes('data-home-picker="mode"'));
     a.click('start');a.step(2);
     if(!explore){assert.ok(!a.html().includes('class="mock-browser"'));a.step(1);a.submit('case-form',design);a.step(2);}
     assert.ok(a.html().includes('class="mock-browser"'),id);
@@ -78,4 +82,34 @@ test('simulation reset preserves learning and recorded user content is escaped',
   assert.equal(Object.keys(a.stored().scenarioState).length,0);
   assert.ok(a.stored().observed.includes('role'));
   assert.equal(a.stored().logs.length,3);
+});
+
+test('home pickers switch app and mode, while advanced guidance stays collapsed',()=>{
+  const a=app('checkout',false);
+  assert.ok(a.html().includes('<details class="home-details">'));
+  assert.ok(!a.html().includes('<details class="home-details" open'));
+  a.choose('app','booking');
+  assert.equal(a.location(),'./?app=booking');
+  const b=app('booking',false);
+  b.choose('mode','explore');
+  assert.equal(b.location(),'./?app=booking&mode=explore');
+});
+test('feedback is gated until first report; explanations cover found and missed defects',()=>{
+  const storage=new Map(),a=app('booking',true,storage);
+  a.click('start');a.step(2);a.input('people','7');a.click('scenario',{'data-operation':'reserve'});
+  a.step(3);
+  assert.ok(a.html().includes('data-action="reveal-feedback" disabled'));
+  assert.ok(!a.html().includes('120分ちょうどの予約が拒否される'));
+  a.submit('report-form',{category:'capacity',title:'定員オーバーで予約できる',steps:'会議室Aで7人の予約を登録する',expected:'定員6人のため拒否する',actual:'7人でも予約できてしまう'});
+  assert.ok(a.html().includes('定員を1人超えて予約できる'));
+  assert.ok(!a.html().includes('120分ちょうどの予約が拒否される'));
+  a.click('reveal-feedback');
+  assert.ok(a.html().includes('120分ちょうどの予約が拒否される'));
+  assert.ok(a.html().includes('未観測'));
+  assert.ok(a.html().includes('報告受理'));
+  assert.ok(a.html().includes('期待結果：'));
+  assert.equal(a.stored().reviewUnlocked,true);
+  const reloaded=app('booking',true,storage);
+  reloaded.click('start');reloaded.step(3);
+  assert.ok(reloaded.html().includes('修行の答え合わせ'));
 });
