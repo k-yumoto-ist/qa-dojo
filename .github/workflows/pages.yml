@@ -41,6 +41,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      - name: Clear stuck Pages deployment from the timed-out run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/pages/deployments/3cc983108a055253d565bf85816771bd6a0b2571/cancel"
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
