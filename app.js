@@ -32,7 +32,7 @@
 
   function blank() {
     return {
-      cases:[], logs:[], reports:[], observed:[], notes:[], progressed:0,
+      cases:[], logs:[], reports:[], observed:[], notes:[], progressed:0, reviewUnlocked:false,
       mock:mission ? {...mission.initial} : {quantity:"2",coupon:"",email:"qa@example.com",memo:""},
       scenarioState:{},
       lastResult:"",resultType:"",orderCount:0
@@ -77,11 +77,8 @@
     if (explore) params.set("mode","explore");
     return "./" + (params.size ? "?"+params.toString() : "");
   }
-  function missionPicker() {
-    return '<section class="panel mission-picker"><div class="panel-title"><h3>練習するアプリを選ぶ</h3><span class="pill gray">5 APPLICATIONS</span></div><div class="mission-options">' +
-      [{id:"checkout",title:"EC注文",description:"数量・送料・割引・入力チェック",level:"01"},...SCENARIOS].map(m=>
-        '<a class="mission-option '+(m.id===missionId?'selected':'')+'" href="'+esc(missionUrl(m.id))+'" '+(m.id===missionId?'aria-current="true"':'')+'><span class="micro">LEVEL '+m.level+'</span><strong>'+esc(m.title)+'</strong><small>'+esc(m.description)+'</small></a>'
-      ).join("")+'</div><p class="micro">記録・スコアはアプリと修行モードごとに保存します。</p></section>';
+  function missionChoices() {
+    return [{id:"checkout", title:"ECサイトの注文フォーム",level:"01"}, ...SCENARIOS];
   }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, ch =>
@@ -140,35 +137,38 @@
     return 100;
   }
   function dashboard() {
-    return '<div class="eyebrow">WELCOME TO THE DOJO / 自ら考え、品質をつくる</div>' +
-      '<h1 class="page-title">品質を見抜く力は、実践で磨く。</h1>' +
-      '<p class="page-lead">知識を覚えるだけでは終わらない。「考える → 試す → 発見する」を繰り返そう。</p>' +
-      '<section class="hero"><div class="hero-copy"><div class="eyebrow">YOUR NEXT CHALLENGE</div>' +
-      '<h1>仕様を読み解け。<br>不具合を見つけ出せ。</h1>' +
-      '<p>本物そっくりのアプリに、意図的な不具合を仕込んである。<br>設計から進めるか、すぐに操作して探索するか。あなたの目で確かめよう。</p>' +
-      '<a class="btn '+(EXPLORATORY ? "btn-hero-outline":"btn-primary")+'" href="'+esc(missionUrl(missionId,false))+'">テスト設計型 →</a> ' +
-      '<a class="btn '+(EXPLORATORY ? "btn-primary":"btn-hero-outline")+'" href="'+esc(missionUrl(missionId,true))+'">探索的テスト →</a>' +
-      '</div><div class="hero-art" aria-hidden="true"><div class="hero-glyph">Q</div></div></section>' +
-      '<div class="section-head"><h2>'+(EXPLORATORY ? "探索的テスト" : "テスト設計型")+'の修行記録</h2><span class="hint">モードごとに記録を保存</span></div>' +
-      missionPicker() + cardStats() +
-      '<div class="section-head"><h2>進行中の修行</h2><span class="hint">CONTINUE LEARNING</span></div>' +
-      '<div class="two-col"><div class="mission-card"><div class="row-between"><span class="pill">LEVEL '+level+' · PRACTICE</span><span class="pill orange">実践演習</span></div>' +
-      '<h3 class="title">'+esc(missionTitle)+'</h3><p>'+(mission ? esc(mission.description) : EXPLORATORY?"仕様だけで打鍵し、気づいたことを探索メモに残す。":"仕様に潜む境界値・計算・入力チェックを見抜く。")+'</p>' +
-      '<div class="mission-meta"><span>◷ 目安 '+(mission ? mission.time : "30〜45分")+'</span><span>◈ 仕様7項目</span><span>▣ 意図的な不具合あり</span></div>' +
-      '<div class="progress-track"><div class="progress-fill" style="width:'+progressPercent()+'%"></div></div>' +
-      '<div class="progress-caption"><span>修行の進捗</span><span>'+progressPercent()+'%</span></div>' +
-      '<div class="actions"><span class="micro">'+(EXPLORATORY?"仕様 → 操作 → 報告":"設計 → 操作 → 報告")+'</span><button class="btn btn-dark" data-action="start">'+(data.logs.length || data.cases.length ? "修行を再開する" : "挑戦する")+' →</button></div></div>' +
-      '<div class="roadmap-card"><div class="row-between"><h3 class="mt-0">修行の進め方</h3><span class="pill gray">'+(EXPLORATORY?"3 STEPS":"4 STEPS")+'</span></div>' +
-      roadmapStep("01","仕様を読み解く","前提条件と期待動作を把握") +
-      (EXPLORATORY ? "" : roadmapStep("02","テストを設計する","観点・手順・期待結果を整理")) +
-      roadmapStep(EXPLORATORY ? "02":"03","操作して検証する","実際に入力・実行して観察") +
-      roadmapStep(EXPLORATORY ? "03":"04","不具合を報告する","再現できる形で結果を記録") +
-      '</div></div>' +
-      '<div class="section-head"><h2>この道場で鍛える3つの力</h2><span class="hint">LEARNING OUTCOMES</span></div>' +
-      '<div class="chapter-list">' +
-      chapter("◈","仕様理解力","書かれていること、書かれていないことを読み解く。") +
-      chapter("▦","テスト設計力","正常系だけでなく境界値や異常系を考える。") +
-      chapter("◎","不具合発見力","観測した事実を根拠に品質を判断する。") + '</div>';
+    const s=score();
+    const mode=EXPLORATORY?"探索的テスト":"テスト設計型";
+    const started=data.logs.length>0||data.cases.length>0||data.notes.length>0;
+    return '<section class="launch-panel" aria-labelledby="launch-title">'+
+      '<div class="eyebrow">YOUR NEXT CHALLENGE · QA道場</div>'+
+      '<h1 id="launch-title">さあ、修行を始めよう。</h1>'+
+      '<p class="launch-lead">アプリと修行モードを選んで、仕様と実際の動きを比べてみよう。</p>'+
+      '<div class="launch-fields"><div class="field"><label for="home-app">練習するアプリ</label>'+
+      '<select id="home-app" data-home-picker="app">'+missionChoices().map(m=>
+        '<option value="'+esc(m.id)+'" '+(m.id===missionId?'selected':'')+'>LEVEL '+esc(m.level)+' · '+esc(m.title)+'</option>'
+      ).join('')+'</select></div>'+
+      '<div class="field"><label for="home-mode">修行モード</label>'+
+      '<select id="home-mode" data-home-picker="mode">'+
+      '<option value="design" '+(!EXPLORATORY?'selected':'')+'>テスト設計型（設計 → 操作 → 報告）</option>'+
+      '<option value="explore" '+(EXPLORATORY?'selected':'')+'>探索的テスト（仕様 → 操作 → 報告）</option>'+
+      '</select></div></div>'+
+      '<div class="launch-actions"><button class="btn btn-primary btn-launch" data-action="start">'+(started?'修行を再開する':'修行を開始する')+' →</button>'+
+      '<span class="launch-progress">'+esc(missionTitle)+' / '+mode+' · 進捗 '+progressPercent()+'% · '+s.total+'点</span></div>'+
+      '</section>'+
+      '<details class="home-details"><summary>初めての方へ・修行の進め方と記録を見る <span aria-hidden="true">⌄</span></summary>'+
+      '<div class="home-detail-content"><p>学習の記録はアプリ・モード別に、このブラウザへ保存されます。</p>'+
+      '<div class="section-head"><h2>現在の修行記録</h2><span class="hint">'+mode+'</span></div>'+cardStats()+
+      '<div class="home-guides"><div class="roadmap-card"><h3>修行の進め方</h3>'+
+      roadmapStep("01","仕様を読み解く","期待する動作を把握する")+
+      (EXPLORATORY?"":roadmapStep("02","テストを設計する","観点・手順・期待結果を書く"))+
+      roadmapStep(EXPLORATORY?"02":"03","アプリを操作する","入力・実行して動きを観察する")+
+      roadmapStep(EXPLORATORY?"03":"04","不具合を報告する","再現手順と期待・実際を記録する")+
+      '</div><div class="roadmap-card"><h3>鍛える3つの力</h3>'+
+      chapter("◈","仕様理解力","正しい状態と境界を読み解く。")+
+      chapter("▦","テスト設計力","正常・異常・組み合わせを考える。")+
+      chapter("◎","不具合発見力","事実と仕様の差を見つける。")+
+      '</div></div></div></details>';
   }
   function roadmapStep(no,title,subtitle) {
     return '<div class="roadmap-step"><div class="roadmap-number">'+no+'</div><div><strong>'+title+'</strong><small>'+subtitle+'</small></div><span class="roadmap-arrow">↗</span></div>';
@@ -335,6 +335,30 @@
     return '<div class="score-meter"><div class="row-between"><span>'+label+'</span><span>'+value+' / '+max+'</span></div><div class="progress-track">' +
       '<div class="progress-fill" style="width:'+Math.round(value/max*100)+'%"></div></div></div>';
   }
+  const CHECKOUT_FEEDBACK = [
+    {id:"shipping",spec:"FR-03",title:"送料無料の境界値を誤判定する",reproduce:"数量を2個にして「計算結果を記録」を押す。",expected:"小計が5,000円なので送料は0円。",actual:"小計5,000円でも送料500円が加算される。"},
+    {id:"discount",spec:"FR-04",title:"クーポン割引に送料まで含まれる",reproduce:"数量1個、クーポンSAVE10で計算する。",expected:"商品小計2,500円の10%にあたる250円を割り引く。",actual:"送料500円も含む3,000円の10%＝300円が割り引かれる。"},
+    {id:"quantity",spec:"FR-01",title:"数量0個の注文を受け付ける",reproduce:"数量0個、正しいメールアドレスで注文を確定する。",expected:"数量は1〜10の整数に限定され、0個はエラーになる。",actual:"数量0個でも注文が確定してしまう。"},
+    {id:"email",spec:"FR-05",title:"不正なメール形式でも注文できる",reproduce:"数量1個、メールに「invalid-address」を入力して確定する。",expected:"@やドメインのないメールアドレスはエラーになる。",actual:"メール形式を確認せず注文を受け付ける。"},
+    {id:"memo",spec:"FR-06",title:"81文字以上の備考を受け付ける",reproduce:"備考を81文字にし、正しい数量とメールで注文を確定する。",expected:"備考は最大80文字なので注文エラーになる。",actual:"81文字以上でも注文が確定してしまう。"}
+  ];
+  function defectFeedback() { return mission ? mission.feedback || [] : CHECKOUT_FEEDBACK; }
+  function feedbackResult() {
+    if(!data.reviewUnlocked)return '<section class="panel answer-gate"><h3>修行の答え合わせ</h3>'+
+      '<p>発見できた不具合と見逃した不具合の内容を、仕様・再現手順・期待結果・実際の結果で確認できます。</p>'+
+      '<button class="btn btn-dark" type="button" data-action="reveal-feedback" '+(data.reports.length?'':'disabled')+'>答え合わせを開く →</button>'+
+      (data.reports.length?'':'<p class="micro">まず不具合報告を1件登録すると解放されます。</p>')+'</section>';
+    const found=observed();
+    return '<section class="panel answer-panel" aria-labelledby="answer-title"><div class="panel-title"><h3 id="answer-title">修行の答え合わせ</h3><span class="pill">'+found.size+' / '+DEFECTS.length+' 件観測</span></div>'+
+      '<p>これは演習アプリに意図的に仕込まれた不具合の解説です。操作による観測と報告の内容は別々に確認してください。</p>'+
+      '<div class="answer-list">'+defectFeedback().map(g=>{
+        const seen=found.has(g.id);
+        const reported=data.reports.some(r=>r.accepted&&r.category===g.id);
+        return '<article class="answer-item"><div class="item-top"><strong>'+esc(g.title)+'</strong><span class="pill '+(seen?'':'gray')+'">'+(reported?'報告受理':seen?'操作で観測':'未観測')+'</span></div>'+
+          '<div class="micro">'+esc(g.spec)+' · '+esc(nameOf(g.id))+'</div>'+
+          '<p><b>再現手順：</b>'+esc(g.reproduce)+'</p><p><b>期待結果：</b>'+esc(g.expected)+'</p><p><b>実際の結果：</b>'+esc(g.actual)+'</p></article>';
+      }).join('')+'</div><p class="micro">※AIによる文章評価はありません。「報告受理」は、該当観点の不具合が操作時に検出されたことを意味します。</p></section>';
+  }
   function reportPage() {
     const s = score();
     const accepted = data.reports.filter(r=>r.accepted);
@@ -342,8 +366,14 @@
       ? '<div class="empty-state"><span class="empty-icon">▤</span>まだ報告がありません。<br>模擬アプリで確認した事象を報告しましょう。</div>'
       : '<div class="report-list">'+data.reports.slice().reverse().map(r =>
         '<div class="report-item"><div class="item-top"><div><span class="micro">'+esc(nameOf(r.category))+' · '+esc(fmtDate(r.at))+'</span><br><strong>'+esc(r.title)+'</strong></div>' +
-        '<span class="pill '+(r.accepted?'':'gray')+'">'+(r.accepted?'観測と一致':'採点対象外')+'</span></div>' +
-        '<p><b>再現手順：</b>'+esc(r.steps)+'</p><p><b>期待：</b>'+esc(r.expected)+'</p><p><b>実際：</b>'+esc(r.actual)+'</p></div>').join("")+'</div>';
+        '<span class="pill '+(r.accepted?'':'gray')+'">'+(r.accepted?'観測と一致':'未受理')+'</span></div>' +
+        '<p><b>再現手順：</b>'+esc(r.steps)+'</p><p><b>期待：</b>'+esc(r.expected)+'</p><p><b>実際：</b>'+esc(r.actual)+'</p>'+
+        (r.accepted&&defectFeedback().some(g=>g.id===r.category)?
+          '<div class="report-evidence"><strong>照合結果：'+esc(defectFeedback().find(g=>g.id===r.category).title)+'</strong>'+
+          '<p>仕様：'+esc(defectFeedback().find(g=>g.id===r.category).expected)+'</p>'+
+          '<p>実際：'+esc(defectFeedback().find(g=>g.id===r.category).actual)+'</p></div>':
+          '<p class="micro">操作の観測記録と一致していません。再現操作と観点を見直してください。</p>')+
+        '</div>').join("")+'</div>';
     return '<div class="layout-aside"><div><section class="panel"><div class="panel-title"><h3>不具合報告を作成</h3><span class="pill">BUG REPORT</span></div>' +
       '<p>観測した事実を元に、誰でも再現できるように記述しましょう。報告に正解候補は表示されません。</p>' +
       '<form id="report-form"><div class="field"><label for="report-title">タイトル *</label><input id="report-title" name="title" maxlength="120" required placeholder="例：境界値のときに結果が仕様と異なる"></div>' +
@@ -353,7 +383,7 @@
       '<div class="field"><label for="report-actual">実際に発生した結果 *</label><textarea id="report-actual" name="actual" maxlength="1000" required placeholder="実際に画面に何が表示されたか"></textarea></div>' +
       '<button class="btn btn-dark w-full" type="submit">報告を登録して照合 →</button></form></section>' +
       '<section class="panel"><div class="panel-title"><h3>提出した不具合報告</h3><span class="small-count">'+accepted.length+' 件受理</span></div>'+list+'</section>' +
-      nextActions(2,null)+'</div><aside class="aside-stack"><section class="panel"><h3>今回の修行スコア</h3>' +
+      feedbackResult()+nextActions(2,null)+'</div><aside class="aside-stack"><section class="panel"><h3>今回の修行スコア</h3>' +
       '<div class="score-ring" style="--score:'+s.total+'%"><div class="score-inner"><strong>'+s.total+'</strong><span>/ 100 POINTS</span></div></div>' +
       '<p class="right" style="text-align:center"><span class="pill">'+progression()+'</span></p>' +
       (EXPLORATORY?"":scoreMeter("設計した観点",s.design,30))+scoreMeter("観測した不具合",s.execute,EXPLORATORY?50:40)+scoreMeter("受理された報告",s.report,EXPLORATORY?50:30) +
@@ -369,7 +399,8 @@
       cardStats()+'<div class="section-head"><h2>'+(EXPLORATORY?"探索的テスト":"テスト設計型")+' · '+esc(missionTitle)+' の進捗</h2><span class="pill">'+progression()+'</span></div>' +
       '<div class="record-grid"><section class="record-card"><h3>スキルスコア</h3>' +
       (EXPLORATORY?"":scoreMeter("テスト設計",s.design,30))+scoreMeter("実機検証",s.execute,EXPLORATORY?50:40)+scoreMeter("不具合報告",s.report,EXPLORATORY?50:30) +
-      '<p>合計 <strong>'+s.total+' / 100点</strong></p><button class="btn btn-dark" data-action="start">修行に戻る →</button></section>' +
+      '<p>合計 <strong>'+s.total+' / 100点</strong></p><button class="btn btn-dark" data-action="start">修行に戻る →</button>' +
+      (data.reviewUnlocked?'<button class="btn btn-outline mt-12" data-action="view-feedback">答え合わせを見直す →</button>':'')+'</section>' +
       '<section class="record-card"><h3>修行ログ</h3><ul class="record-list">' +
       (EXPLORATORY ? '<li>探索メモ：<b>'+data.notes.length+'件</b></li>' :
       '<li>作成したテストケース：<b>'+data.cases.length+'件</b></li><li>テスト設計の観点：<b>'+categorySet.size+'種類</b></li>') +
@@ -518,6 +549,15 @@
     showToast("修行の記録を書き出しました");
   }
   document.addEventListener("change",e => {
+    const picker=e.target.closest("[data-home-picker]");
+    if(picker) {
+      const kind=picker.getAttribute("data-home-picker");
+      const id=kind==="app"?picker.value:missionId;
+      const explore=kind==="mode"?picker.value==="explore":EXPLORATORY;
+      if((kind==="app"&&missionChoices().some(m=>m.id===id))||kind==="mode")
+        window.location.href=missionUrl(id,explore);
+      return;
+    }
     const mock=e.target.closest("[data-mock]");if(mock)syncMock(mock);
   });
   document.addEventListener("input",e => {
@@ -542,6 +582,10 @@
           logAction("模擬データ初期化","入力と登録データを初期状態に戻しました");render();
         }break;
       case "start":toStep(data.progressed>0?Math.min(3,data.progressed):0);break;
+      case "reveal-feedback":
+        if(data.reports.length) {data.reviewUnlocked=true;render();showToast("不具合の解説を表示しました");}
+        break;
+      case "view-feedback":toStep(3);break;
       case "step":toStep(Number(actionEl.getAttribute("data-step")));break;
       case "remove-case":{
         const id=actionEl.getAttribute("data-id");

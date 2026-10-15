@@ -1,0 +1,22 @@
+name: Verify QA Dojo
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify JavaScript syntax
+        run: |
+          node --check app.js
+          node --check scenarios.js
+      - name: Run training tests
+        run: node --test tests/*.test.cjs
