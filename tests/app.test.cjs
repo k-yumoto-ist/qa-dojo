@@ -20,7 +20,6 @@ function app(id,explore,storage=new Map()) {
     html:()=>elements.get('main').innerHTML,
     click:(action,extra={})=>click({'data-action':action,...extra}),
     step:n=>click({'data-action':'step','data-step':String(n)}),
-    choose:(kind,value)=>events.change({target:{closest:selector=>selector==='[data-home-picker]'?{getAttribute:()=>kind,value}:null}}),
     location:()=>location.href,
     input:(key,value,type='text')=>events.input({target:{closest:()=>({getAttribute:()=>key,value,type,checked:value==='yes'})}}),
     submit:(id,values)=>events.submit({preventDefault(){},target:{id,values}}),
@@ -32,10 +31,10 @@ const design={title:'境界条件を確認する',category:'other',steps:'仕様
 test('all five apps render and execute in both modes, preserving design gate',()=>{
   for(const id of ['checkout','booking','signup','search','expense'])for(const explore of [false,true]) {
     const a=app(id,explore);
-    assert.equal((a.html().match(/<option value="(?:checkout|booking|signup|search|expense)"/g)||[]).length,5);
-    assert.ok(a.html().includes('data-home-picker="app"'));
+    assert.equal((a.html().match(/data-app-id="(?:checkout|booking|signup|search|expense)"/g)||[]).length,5);
+    assert.ok(a.html().includes('aria-label="練習するアプリ"'));
     assert.ok(a.html().indexOf('data-action="start"')<a.html().indexOf('<details class="home-details"'));
-    assert.ok(a.html().includes('data-home-picker="mode"'));
+    assert.ok(a.html().includes('aria-label="修行モード"'));
     a.click('start');a.step(2);
     if(!explore){assert.ok(!a.html().includes('class="mock-browser"'));a.step(1);a.submit('case-form',design);a.step(2);}
     assert.ok(a.html().includes('class="mock-browser"'),id);
@@ -84,15 +83,22 @@ test('simulation reset preserves learning and recorded user content is escaped',
   assert.equal(a.stored().logs.length,3);
 });
 
-test('home pickers switch app and mode, while advanced guidance stays collapsed',()=>{
+test('visual gallery links preserve app/mode and saved progress; guidance stays collapsed',()=>{
   const a=app('checkout',false);
   assert.ok(a.html().includes('<details class="home-details">'));
   assert.ok(!a.html().includes('<details class="home-details" open'));
-  a.choose('app','booking');
-  assert.equal(a.location(),'./?app=booking');
-  const b=app('booking',false);
-  b.choose('mode','explore');
-  assert.equal(b.location(),'./?app=booking&mode=explore');
+  assert.ok(a.html().includes('href="./?app=booking" data-app-id="booking"'));
+  const b=app('booking',true);
+  assert.ok(b.html().includes('href="./?app=search&mode=explore" data-app-id="search"'));
+  assert.ok(b.html().includes('href="./?app=booking" class="mode-segment '));
+  assert.ok(b.html().includes('href="./?app=booking&mode=explore" class="mode-segment selected" aria-current="true"'));
+  assert.ok(!b.html().includes('テストを設計</strong>'));
+  const storage=new Map();
+  const saved=app('booking',true,storage);
+  saved.click('start');saved.step(2);saved.input('people','2');saved.click('scenario',{'data-operation':'reserve'});
+  const other=app('checkout',true,storage);
+  assert.ok(other.html().includes('会議室予約、進捗50%を選ぶ'));
+  assert.ok(app('checkout',false,storage).html().includes('会議室予約、進捗0%を選ぶ'));
 });
 test('feedback is gated until first report; explanations cover found and missed defects',()=>{
   const storage=new Map(),a=app('booking',true,storage);

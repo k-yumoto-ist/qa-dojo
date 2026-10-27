@@ -16,26 +16,25 @@
   <div class="app-shell">
     <aside class="sidebar" aria-label="メインナビゲーション">
       <a class="brand" href="./" data-nav="dashboard" aria-label="QA道場 ホーム">
-        <span class="brand-mark">Q<span>✦</span></span><span class="brand-name">QA<span>道場</span><small>QUALITY ENGINEERING DOJO</small></span>
+        <img class="brand-logo" src="./favicon.svg" width="44" height="44" alt=""><span class="brand-name">QA<span>道場</span><small>QUALITY ENGINEERING DOJO</small></span>
       </a>
       <div class="sidebar-caption">WORKSPACE</div>
       <nav class="sidebar-nav" aria-label="メニュー">
-        <button type="button" class="nav-link active" data-nav="dashboard"><span class="nav-icon">⌂</span> ダッシュボード</button>
-        <button type="button" class="nav-link" data-nav="dojo"><span class="nav-icon">◇</span> 修行を始める <span class="nav-dot"></span></button>
-        <button type="button" class="nav-link" data-nav="records"><span class="nav-icon">▤</span> 修行の記録</button>
+        <button type="button" class="nav-link active" data-nav="dashboard"><img class="ui-icon" src="./assets/icons/home.svg" alt=""> 修行</button>
+        <button type="button" class="nav-link" data-nav="records"><img class="ui-icon" src="./assets/icons/chart-bar.svg" alt=""> 修行の記録</button>
       </nav>
       <div class="sidebar-bottom">
         <div class="sidebar-quote"><span>“</span>品質は、テストの数ではなく、<br>問いの深さから生まれる。</div>
-        <div class="profile-mini"><span class="profile-avatar">QA</span><span><strong>QA Trainee</strong><small>LOCAL TRAINING MODE</small></span><span class="profile-online"></span></div>
+        <div class="profile-mini"><span class="profile-avatar">QA</span><span><strong>QA Trainee</strong><small>見習いテスター</small></span><span class="profile-online"></span></div>
       </div>
     </aside>
     <div class="workspace">
       <header class="topbar">
         <div class="topbar-crumb">LEARNING SPACE <span>/</span> <strong id="breadcrumb">ダッシュボード</strong></div>
-        <div class="topbar-right"><span class="local-label"><span class="status-pulse"></span> LOCAL SAVE</span><span class="top-avatar">Q</span></div>
+        <div class="topbar-right"><span class="local-label"><span class="status-pulse"></span> 自動保存</span><span class="top-avatar">Q</span></div>
       </header>
       <main id="main" class="main-content" tabindex="-1"><noscript>このアプリを利用するにはJavaScriptを有効にしてください。</noscript></main>
-      <footer class="footer"><span>QA DOJO — LEARN BY DOING</span><span>v1.0 · Frontend only</span></footer>
+      <footer class="footer"><span>QA DOJO — LEARN BY DOING</span><span>仕様から、品質を見抜く。</span></footer>
     </div>
   </div>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
