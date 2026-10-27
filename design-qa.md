@@ -54,3 +54,11 @@ final result: passed
 - [x] Add optimized real image assets and locally licensed icons.
 - [x] Resolve desktop/mobile primary-action visibility findings.
 - [x] Compare full view and focused controls, inspect browser errors, run regression tests.
+
+## Training flow follow-up (2026-10-27)
+
+User identified the home/training experience gap. Updated all four shared training stages: compact consistent title, sticky progress navigation, icon-led task heading, requirement disclosures, in-place specification reference, category buttons on design/report, quieter contextual tips, and restyled mock applications / activity log. Existing scenario logic and intentional defects are unchanged.
+
+Browser checks at 1348 × 926: requirement cards and contextual hints render; exploration start/resume reaches operation; calculation still records the intentional boundary defect; activity log opens after recording; reporting category button sets the form select; typed report title survives opening/closing specification reference. No app console errors. Browser screenshot: `docs/design/training-report.jpg` (reporting, shipping category selected, typed title). All 12 regression tests pass across five applications and both modes. Desktop inspected visually; mobile styling included but this follow-up has not been checked on physical iOS hardware. The approved first concept remains the visual-system reference, rather than a separate pixel-exact target for every training stage.
+
+final result: passed
