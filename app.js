@@ -168,7 +168,7 @@
       ...(!EXPLORATORY?[{icon:"pencil",name:"テストを設計",note:"確かめたいことを考える"}]:[]),
       {icon:"player-play",name:"アプリを操作",note:"実際に動かして試す"},
       {icon:"bug",name:"不具合を報告",note:"仕様との差を伝える"}];
-    return '<section class="visual-home" aria-labelledby="launch-title">'+
+    return '<a class="ux-entry" href="./ux.html"><span>NEW · 独立した修行</span><strong>UI/UXレビュー</strong><small>利用者の立場で操作し、違和感と改善案を考える →</small></a><section class="visual-home" aria-labelledby="launch-title">'+
       '<header class="gallery-intro"><div class="eyebrow">QA道場</div><h1 id="launch-title">さあ、修行を始めよう。</h1>'+
       '<p>アプリを選んで、仕様を読み、実際に操作して不具合を見つけよう。</p></header>'+
       '<section class="gallery-section" aria-labelledby="gallery-title"><div class="gallery-heading"><h2 id="gallery-title">練習するアプリを選ぶ</h2>'+
