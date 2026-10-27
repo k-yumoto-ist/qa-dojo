@@ -136,26 +136,57 @@
     if (data.reports.filter(r=>r.accepted).length<3) return 80;
     return 100;
   }
+  const HOME_APPS = {
+    checkout:{icon:"shopping-cart",short:"ECサイト",description:"数量・送料・クーポンをテスト"},
+    booking:{icon:"calendar-event",short:"会議室予約",description:"日時・人数・予約の重複をテスト"},
+    signup:{icon:"user-plus",short:"会員登録",description:"入力チェック・登録条件をテスト"},
+    search:{icon:"search",short:"商品検索",description:"絞り込み・並び順をテスト"},
+    expense:{icon:"receipt",short:"経費申請",description:"金額・申請・承認の流れをテスト"}
+  };
+  function icon(name, cls="") {
+    return '<img class="ui-icon '+cls+'" src="./assets/icons/'+name+'.svg" alt="" aria-hidden="true">';
+  }
+  function savedProgress(id) {
+    if(id===missionId) return progressPercent();
+    try {
+      const record=JSON.parse(localStorage.getItem(BASE_KEY+(id==="checkout"?"":":"+id)));
+      if(!record) return 0;
+      const reports=Array.isArray(record.reports)?record.reports.filter(r=>r.accepted).length:0;
+      const logs=Array.isArray(record.logs)?record.logs.length:0;
+      const cases=Array.isArray(record.cases)?record.cases.length:0;
+      if(!EXPLORATORY&&!cases) return 0;
+      if(!logs) return EXPLORATORY?0:25;
+      if(!reports) return EXPLORATORY?50:60;
+      return reports<3?80:100;
+    } catch (_) {return 0;}
+  }
   function dashboard() {
-    const s=score();
     const mode=EXPLORATORY?"探索的テスト":"テスト設計型";
-    const started=data.logs.length>0||data.cases.length>0||data.notes.length>0;
-    return '<section class="launch-panel" aria-labelledby="launch-title">'+
-      '<div class="eyebrow">YOUR NEXT CHALLENGE · QA道場</div>'+
-      '<h1 id="launch-title">さあ、修行を始めよう。</h1>'+
-      '<p class="launch-lead">アプリと修行モードを選んで、仕様と実際の動きを比べてみよう。</p>'+
-      '<div class="launch-fields"><div class="field"><label for="home-app">練習するアプリ</label>'+
-      '<select id="home-app" data-home-picker="app">'+missionChoices().map(m=>
-        '<option value="'+esc(m.id)+'" '+(m.id===missionId?'selected':'')+'>LEVEL '+esc(m.level)+' · '+esc(m.title)+'</option>'
-      ).join('')+'</select></div>'+
-      '<div class="field"><label for="home-mode">修行モード</label>'+
-      '<select id="home-mode" data-home-picker="mode">'+
-      '<option value="design" '+(!EXPLORATORY?'selected':'')+'>テスト設計型（設計 → 操作 → 報告）</option>'+
-      '<option value="explore" '+(EXPLORATORY?'selected':'')+'>探索的テスト（仕様 → 操作 → 報告）</option>'+
-      '</select></div></div>'+
-      '<div class="launch-actions"><button class="btn btn-primary btn-launch" data-action="start">'+(started?'修行を再開する':'修行を開始する')+' →</button>'+
-      '<span class="launch-progress">'+esc(missionTitle)+' / '+mode+' · 進捗 '+progressPercent()+'% · '+s.total+'点</span></div>'+
-      '</section>'+
+    const started=data.logs.length>0||data.cases.length>0||data.notes.length>0||data.progressed>0;
+    const selected=HOME_APPS[missionId];
+    const flow=[{icon:"file-description",name:"仕様を読む",note:"正しい動きを知る"},
+      ...(!EXPLORATORY?[{icon:"pencil",name:"テストを設計",note:"確かめたいことを考える"}]:[]),
+      {icon:"player-play",name:"アプリを操作",note:"実際に動かして試す"},
+      {icon:"bug",name:"不具合を報告",note:"仕様との差を伝える"}];
+    return '<section class="visual-home" aria-labelledby="launch-title">'+
+      '<header class="gallery-intro"><div class="eyebrow">QA道場</div><h1 id="launch-title">さあ、修行を始めよう。</h1>'+
+      '<p>アプリを選んで、仕様を読み、実際に操作して不具合を見つけよう。</p></header>'+
+      '<section class="gallery-section" aria-labelledby="gallery-title"><div class="gallery-heading"><h2 id="gallery-title">練習するアプリを選ぶ</h2>'+
+      '<div class="gallery-controls"><span>全5アプリ</span><button class="gallery-arrow" data-action="gallery-prev" aria-label="前のアプリを見る">'+icon("chevron-left")+'</button>'+
+      '<button class="gallery-arrow" data-action="gallery-next" aria-label="次のアプリを見る">'+icon("chevron-right")+'</button></div></div>'+
+      '<div class="mission-gallery" id="mission-gallery" role="group" aria-label="練習するアプリ">'+missionChoices().map(m=>{
+        const meta=HOME_APPS[m.id],percent=savedProgress(m.id),active=m.id===missionId;
+        return '<a class="app-tile '+(active?'selected':'')+'" href="'+missionUrl(m.id)+'" data-app-id="'+m.id+'" '+(active?'aria-current="true"':'')+' aria-label="'+esc(m.title)+'、進捗'+percent+'%'+(active?'、選択中':'を選ぶ')+'">'+
+          '<div class="tile-preview"><img src="./assets/'+m.id+'.webp" alt="" width="640" height="480" draggable="false">'+
+          '<span class="tile-level">LEVEL '+esc(m.level)+'</span>'+(active?'<span class="tile-selected">'+icon("check")+'選択中</span>':'')+'</div>'+
+          '<div class="tile-caption"><span class="app-symbol app-'+m.id+'">'+icon(meta.icon)+'</span><div class="tile-copy"><h3>'+esc(m.title)+'</h3><p>'+meta.description+'</p></div>'+
+          '<span class="tile-progress" aria-hidden="true">'+percent+'<small>%</small></span></div><progress class="tile-meter" value="'+percent+'" max="100" aria-label="'+esc(m.title)+'の進捗">'+percent+'%</progress></a>';
+      }).join('')+'</div></section>'+
+      '<section class="training-launch" aria-labelledby="mode-title"><div class="selection-row"><div class="selection-name"><span class="app-symbol app-'+missionId+'">'+icon(selected.icon)+'</span><div><span class="selection-label" id="mode-title">選んだアプリで修行する</span><strong>'+esc(missionTitle)+'</strong></div></div>'+
+      '<div class="mode-segments" role="group" aria-label="修行モード"><a href="'+missionUrl(missionId,false)+'" class="mode-segment '+(!EXPLORATORY?'selected':'')+'" '+(!EXPLORATORY?'aria-current="true"':'')+'>'+icon("file-description")+'<span>テスト設計<small>考えてから試す</small></span></a>'+
+      '<a href="'+missionUrl(missionId,true)+'" class="mode-segment '+(EXPLORATORY?'selected':'')+'" '+(EXPLORATORY?'aria-current="true"':'')+'>'+icon("player-play")+'<span>探索的テスト<small>操作しながら探る</small></span></a></div></div>'+
+      '<ol class="visual-flow '+(EXPLORATORY?'three-steps':'')+'" aria-label="修行の流れ">'+flow.map((f,i)=>'<li><span class="flow-icon">'+icon(f.icon)+'</span><div><span class="flow-number">0'+(i+1)+'</span><strong>'+f.name+'</strong><small>'+f.note+'</small></div>'+(i<flow.length-1?icon("chevron-right","flow-chevron"):'')+'</li>').join('')+'</ol>'+
+      '<div class="gallery-launch"><button class="btn btn-primary btn-launch" data-action="start">'+(started?'修行を再開する':'修行を始める')+icon("arrow-right")+'</button><span class="launch-save">'+icon("device-floppy")+'このブラウザに自動保存</span></div></section></section>'+
       '<details class="home-details"><summary>初めての方へ・修行の進め方と記録を見る <span aria-hidden="true">⌄</span></summary>'+
       '<div class="home-detail-content"><p>学習の記録はアプリ・モード別に、このブラウザへ保存されます。</p>'+
       '<div class="section-head"><h2>現在の修行記録</h2><span class="hint">'+mode+'</span></div>'+cardStats()+
@@ -191,7 +222,7 @@
     const page=[specPage,designPage,labPage,reportPage][step]();
     return '<div class="row-between wrap-mobile"><div><div class="eyebrow">TRAINING / LEVEL '+level+' · '+(EXPLORATORY?"EXPLORATORY":"TEST DESIGN")+'</div>' +
       '<h1 class="page-title">'+esc(missionTitle)+'</h1><p class="page-lead mb-0"><span class="pill">'+(EXPLORATORY?"探索的テスト":"テスト設計型")+'</span>　仕様とアプリの差分を見つけよう。</p></div>' +
-      '<button class="btn btn-outline btn-sm" data-nav="dashboard">← ダッシュボードへ</button></div>' +
+      '<button class="btn btn-outline btn-sm" data-nav="dashboard">← アプリを選び直す</button></div>' +
       '<section class="step-head"><div class="eyebrow">STEP '+String(sequence.indexOf(step)+1).padStart(2,"0")+' / '+String(sequence.length).padStart(2,"0")+'</div>' +
       '<h2>'+titles[step]+'</h2><p>'+leads[step]+'</p><div class="steps '+(EXPLORATORY?"exploratory":"")+'" role="navigation" aria-label="演習ステップ">'+tabs+'</div></section>' + page;
   }
@@ -413,9 +444,14 @@
   function render() {
     main.innerHTML = view === "dashboard" ? dashboard() : view === "records" ? recordsPage() : dojo();
     document.getElementById("breadcrumb").textContent =
-      view === "dashboard" ? "ダッシュボード" : view === "records" ? "修行の記録" : missionTitle;
+      view === "dashboard" ? "修行" : view === "records" ? "修行の記録" : missionTitle;
     document.querySelectorAll(".nav-link").forEach(item =>
-      item.classList.toggle("active",(view === "dojo" ? "dojo" : view) === item.getAttribute("data-nav")));
+      item.classList.toggle("active",(view === "dojo" ? "dashboard" : view) === item.getAttribute("data-nav")));
+    const gallery=document.getElementById("mission-gallery");
+    if(gallery) {
+      const tile=gallery.querySelector('[aria-current="true"]');
+      if(tile) gallery.scrollLeft=Math.max(0,tile.offsetLeft-gallery.offsetLeft-12);
+    }
     save();
   }
   function toView(next) {
@@ -549,15 +585,6 @@
     showToast("修行の記録を書き出しました");
   }
   document.addEventListener("change",e => {
-    const picker=e.target.closest("[data-home-picker]");
-    if(picker) {
-      const kind=picker.getAttribute("data-home-picker");
-      const id=kind==="app"?picker.value:missionId;
-      const explore=kind==="mode"?picker.value==="explore":EXPLORATORY;
-      if((kind==="app"&&missionChoices().some(m=>m.id===id))||kind==="mode")
-        window.location.href=missionUrl(id,explore);
-      return;
-    }
     const mock=e.target.closest("[data-mock]");if(mock)syncMock(mock);
   });
   document.addEventListener("input",e => {
@@ -575,6 +602,12 @@
     if(!actionEl) return;
     e.preventDefault();
     switch(actionEl.getAttribute("data-action")){
+      case "gallery-prev":
+      case "gallery-next": {
+        const gallery=document.getElementById("mission-gallery");
+        if(gallery) gallery.scrollBy({left:(actionEl.getAttribute("data-action")==="gallery-next"?1:-1)*gallery.clientWidth*.85,behavior:"smooth"});
+        break;
+      }
       case "scenario":executeScenario(actionEl.getAttribute("data-operation"));break;
       case "reset-simulation":
         if(window.confirm("模擬アプリの入力と登録データを初期状態に戻しますか？学習記録は残ります。")){
