@@ -220,24 +220,30 @@
       tabs+='<button type="button" class="step-tab '+(step===id?"current":id<data.progressed?"done":"")+'" data-action="step" data-step="'+id+'" '+(blocked?'disabled title="テストケースを1件以上作成してください"':"")+'><span class="step-no">'+(id<data.progressed?"✓":i+1)+'</span><span>'+esc(STEPS[id])+'</span></button>';
     });
     const page=[specPage,designPage,labPage,reportPage][step]();
-    return '<div class="row-between wrap-mobile"><div><div class="eyebrow">TRAINING / LEVEL '+level+' · '+(EXPLORATORY?"EXPLORATORY":"TEST DESIGN")+'</div>' +
-      '<h1 class="page-title">'+esc(missionTitle)+'</h1><p class="page-lead mb-0"><span class="pill">'+(EXPLORATORY?"探索的テスト":"テスト設計型")+'</span>　仕様とアプリの差分を見つけよう。</p></div>' +
-      '<button class="btn btn-outline btn-sm" data-nav="dashboard">← アプリを選び直す</button></div>' +
-      '<section class="step-head"><div class="eyebrow">STEP '+String(sequence.indexOf(step)+1).padStart(2,"0")+' / '+String(sequence.length).padStart(2,"0")+'</div>' +
-      '<h2>'+titles[step]+'</h2><p>'+leads[step]+'</p><div class="steps '+(EXPLORATORY?"exploratory":"")+'" role="navigation" aria-label="演習ステップ">'+tabs+'</div></section>' + page;
+    return '<div class="training-workspace training-step-'+step+'"><header class="training-title"><span class="app-symbol app-'+missionId+'">'+icon(HOME_APPS[missionId].icon)+'</span><div><span class="eyebrow">LEVEL '+level+' · '+(EXPLORATORY?'探索的テスト':'テスト設計型')+'</span><h1>'+esc(missionTitle)+'</h1></div><button class="btn btn-outline btn-sm" data-nav="dashboard">アプリを変更</button></header>'+
+      '<nav class="training-navigation" aria-label="修行のステップ"><div class="steps '+(EXPLORATORY?'exploratory':'')+'">'+tabs+'</div></nav>'+
+      '<header class="task-heading"><span class="task-icon">'+icon(['file-description','pencil','player-play','bug'][step])+'</span><div><span class="eyebrow">STEP '+(sequence.indexOf(step)+1)+' / '+sequence.length+'</span><h2>'+titles[step]+'</h2><p>'+leads[step]+'</p></div></header>'+
+      (step?specReference():'')+page+'</div>';
   }
+  function specReference() {
+    return '<details class="spec-reference"><summary>'+icon('file-description')+'仕様を確認する<span>いつでも参照できます</span></summary><div class="spec-reference-grid">'+SPECIFICATIONS.map(s=>'<article><span class="spec-id">'+esc(s.id)+'</span><strong>'+esc(s.title)+'</strong><p>'+esc(s.body)+'</p></article>').join('')+'</div></details>';
+  }
+  function categoryChips(form) {
+    return '<div class="category-chips" role="group" aria-label="テスト観点を選ぶ">'+CATEGORIES.map(c=>'<button type="button" data-action="category-chip" data-form="'+form+'" data-category="'+esc(c.id)+'" aria-pressed="false">'+esc(c.name)+'</button>').join('')+'</div>';
+  }
+
   function nextActions(back,next,nextLabel) {
     return '<div class="actions"><button class="btn btn-outline" data-action="step" data-step="'+back+'">← 前のステップ</button>' +
       (next == null ? '<button class="btn btn-dark" data-nav="records">修行の記録を見る →</button>' :
       '<button class="btn btn-dark" data-action="step" data-step="'+next+'">'+nextLabel+' →</button>')+'</div>';
   }
   function specPage() {
-    let rows = SPECIFICATIONS.map(s =>
-      '<div class="spec-row"><span class="spec-id">'+s.id+'</span><div><strong>'+s.title+'</strong><p>'+s.body+'</p></div></div>'
+    let rows = SPECIFICATIONS.map((s,i) =>
+      '<details class="spec-card" '+(i===0?'open':'')+'><summary><span class="spec-id">'+esc(s.id)+'</span><strong>'+esc(s.title)+'</strong>'+icon('chevron-right')+'</summary><p>'+esc(s.body)+'</p></details>'
     ).join("");
     return '<div class="layout-aside"><div><section class="panel"><div class="panel-title"><h3>'+esc(missionTitle)+' 機能仕様書</h3><span class="pill">SPEC v1.0</span></div>' +
       '<p>あなたはこのアプリのQA担当です。以下の仕様を読み、'+(EXPLORATORY?'気になったところから自由に実機操作してください。':'テストを設計して実装を確認してください。')+'</p>' +
-      rows+'</section>'+nextActions(0,EXPLORATORY ? 2 : 1,EXPLORATORY ? "アプリを操作する" : "テスト設計へ進む")+'</div>' +
+      '<div class="spec-card-grid">'+rows+'</div></section>'+nextActions(0,EXPLORATORY ? 2 : 1,EXPLORATORY ? "アプリを操作する" : "テスト設計へ進む")+'</div>' +
       '<aside class="aside-stack"><div class="help-panel"><h3>◈ テスターへのヒント</h3><p>'+(EXPLORATORY?'仕様を読んだら、まず手を動かしてみよう。気づきは探索メモに保存できます。':'すぐに操作する前に、まず「何を確認すべきか」を考えてみよう。')+'</p>' +
       '<ul><li>境界値の前後で何が変わる？</li><li>入力が不正だったらどうなる？</li><li>複数条件が組み合わさると？</li><li>期待結果を数字で説明できる？</li></ul>' +
       '<p>不具合の個数や答えは公開しません。</p></div><div class="panel mt-20"><h3>修行のゴール</h3>' +
@@ -257,7 +263,7 @@
         '<p><b>手順：</b>'+esc(t.steps)+'</p><p><b>期待：</b>'+esc(t.expected)+'</p></div>').join("")+'</div>';
     return '<div class="layout-aside"><div><section class="panel"><div class="panel-title"><h3>テストケースを追加</h3><span class="pill gray">自分で考える</span></div>' +
       '<p>単に「動くこと」ではなく、入力値と期待する結果を具体的に記述してください。</p>' +
-      '<form id="case-form"><div class="field"><label for="case-title">テストケース名 *</label><input id="case-title" name="title" maxlength="100" required placeholder="例：仕様の上限値を確認する"></div>' +
+      categoryChips('case')+'<form id="case-form"><div class="field"><label for="case-title">テストケース名 *</label><input id="case-title" name="title" maxlength="100" required placeholder="例：仕様の上限値を確認する"></div>' +
       '<div class="form-grid"><div class="field"><label for="case-category">テスト観点 *</label><select id="case-category" name="category" required>'+categoryOptions("観点を選択")+'</select></div>' +
       '<div class="field"><label for="case-pre">前提条件（任意）</label><input id="case-pre" name="precondition" maxlength="160" placeholder="例：模擬アプリを表示"></div></div>' +
       '<div class="field"><label for="case-steps">操作手順 *</label><textarea id="case-steps" name="steps" maxlength="1000" required placeholder="1. 対象の入力値を設定する&#10;2. 実行して結果を確認する"></textarea></div>' +
@@ -295,7 +301,7 @@
       '<div class="lab-grid"><section>' + (mission ? scenarioLab() : '<div class="mock-browser"><div class="browser-bar"><i class="browser-dot"></i><i class="browser-dot"></i><i class="browser-dot"></i>' +
       '<span class="browser-url">demo.coffee-market.test / checkout</span></div>' +
       '<div class="store-banner"><small>COFFEE MARKET</small>注文情報の入力</div><div class="store-content">' +
-      '<div class="product-block"><div class="product-img" aria-hidden="true">☕</div><div><strong>オリジナルブレンド 200g</strong>' +
+      '<div class="product-block"><span class="app-symbol">'+icon('shopping-cart')+'</span><div><strong>オリジナルブレンド 200g</strong>' +
       '<small>香り豊かな定番コーヒー</small><div class="product-price">¥2,500 <span class="micro">/ 個</span></div></div></div>' +
       '<div class="form-grid"><div class="field"><label for="mock-quantity">購入数量</label><input id="mock-quantity" data-mock="quantity" type="number" inputmode="numeric" step="1" value="'+esc(data.mock.quantity)+'"></div>' +
       '<div class="field"><label for="mock-coupon">クーポン</label><input id="mock-coupon" data-mock="coupon" type="text" placeholder="コードを入力" value="'+esc(data.mock.coupon)+'"></div></div>' +
@@ -311,9 +317,9 @@
       '<div class="lab-result '+esc(data.resultType)+'" role="status">'+
       (data.lastResult ? esc(data.lastResult) : 'まだ注文は確定していません。入力値を変更しながら試してください。') +
       '</div></div></div>') + '</section>' +
-      '<aside><section class="panel"><div class="panel-title"><h3>操作ログ</h3><span class="pill gray">直近8件</span></div>' +
+      '<aside><details class="panel activity-drawer" '+(data.logs.length?'open':'')+'><summary>操作ログ <span>'+data.logs.length+' 操作</span></summary><div class="panel-title"><h3>操作ログ</h3><span class="pill gray">直近8件</span></div>' +
       '<p>実行した入力と結果が自動で記録されます。気づいた点を仕様書と照合しよう。</p>'+logs+
-      '<div class="actions"><span class="micro">累計 '+data.logs.length+' 操作</span><button class="btn btn-outline btn-sm" data-action="clear-logs">ログを消去</button></div></section>' +
+      '<div class="actions"><span class="micro">累計 '+data.logs.length+' 操作</span><button class="btn btn-outline btn-sm" data-action="clear-logs">ログを消去</button></div></details>' +
       (EXPLORATORY ? '<section class="panel"><div class="panel-title"><h3>探索メモ</h3><span class="pill gray">'+data.notes.length+' 件</span></div>' +
       '<p>何を試したか、気になった点、次に試すことを自由に残そう。メモは採点対象外です。</p>' +
       '<form id="note-form"><div class="field"><label for="note-content">気づき・疑問・次の仮説</label><textarea id="note-content" name="content" maxlength="1000" required placeholder="例：境界値で結果が変わった。前後の値や組み合わせも試したい。"></textarea></div>' +
@@ -407,7 +413,7 @@
         '</div>').join("")+'</div>';
     return '<div class="layout-aside"><div><section class="panel"><div class="panel-title"><h3>不具合報告を作成</h3><span class="pill">BUG REPORT</span></div>' +
       '<p>観測した事実を元に、誰でも再現できるように記述しましょう。報告に正解候補は表示されません。</p>' +
-      '<form id="report-form"><div class="field"><label for="report-title">タイトル *</label><input id="report-title" name="title" maxlength="120" required placeholder="例：境界値のときに結果が仕様と異なる"></div>' +
+      categoryChips('report')+'<form id="report-form"><div class="field"><label for="report-title">タイトル *</label><input id="report-title" name="title" maxlength="120" required placeholder="例：境界値のときに結果が仕様と異なる"></div>' +
       '<div class="field"><label for="report-category">対象の観点 *</label><select id="report-category" name="category" required>'+categoryOptions("観点を選択")+'</select></div>' +
       '<div class="field"><label for="report-steps">再現手順 *</label><textarea id="report-steps" name="steps" maxlength="1500" required placeholder="1. 模擬アプリを開く&#10;2. 入力値と操作を記載する&#10;3. 結果を確認する"></textarea></div>' +
       '<div class="field"><label for="report-expected">期待される結果 *</label><textarea id="report-expected" name="expected" maxlength="1000" required placeholder="仕様上はどうなるべきか"></textarea></div>' +
@@ -443,6 +449,17 @@
   }
   function render() {
     main.innerHTML = view === "dashboard" ? dashboard() : view === "records" ? recordsPage() : dojo();
+    if(view==="dojo" && main.querySelectorAll) {
+      main.querySelectorAll(".help-panel").forEach(panel=>{
+        const heading=panel.querySelector("h3");
+        if(!heading)return;
+        const details=document.createElement("details");details.className="help-panel contextual-help";
+        const summary=document.createElement("summary");summary.textContent=heading.textContent;
+        heading.remove();details.appendChild(summary);
+        while(panel.firstChild)details.appendChild(panel.firstChild);
+        panel.replaceWith(details);
+      });
+    }
     document.getElementById("breadcrumb").textContent =
       view === "dashboard" ? "修行" : view === "records" ? "修行の記録" : missionTitle;
     document.querySelectorAll(".nav-link").forEach(item =>
@@ -585,6 +602,11 @@
     showToast("修行の記録を書き出しました");
   }
   document.addEventListener("change",e => {
+    if(e.target.id==="case-category"||e.target.id==="report-category") {
+      const group=main.querySelector(".category-chips");
+      if(group)group.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.getAttribute("data-category")===e.target.value)));
+    }
+
     const mock=e.target.closest("[data-mock]");if(mock)syncMock(mock);
   });
   document.addEventListener("input",e => {
@@ -602,6 +624,15 @@
     if(!actionEl) return;
     e.preventDefault();
     switch(actionEl.getAttribute("data-action")){
+      case "category-chip": {
+        const form=actionEl.getAttribute("data-form");
+        const select=document.getElementById(form+"-category");
+        if(select) {
+          select.value=actionEl.getAttribute("data-category");
+          actionEl.closest(".category-chips").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b===actionEl)));
+        }
+        break;
+      }
       case "gallery-prev":
       case "gallery-next": {
         const gallery=document.getElementById("mission-gallery");
