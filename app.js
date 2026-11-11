@@ -57,6 +57,11 @@
   let data = load();
   let view = "dashboard";
   let step = 0;
+  let guideReturnView = "dashboard";
+  const TUTORIAL_KEY = "qa-dojo:tutorial:completed:v1";
+  let tutorialCompleted = false;
+  try { tutorialCompleted = localStorage.getItem(TUTORIAL_KEY) === "yes"; } catch (_) {}
+  let tutorial = {phase:0,quantity:"1",ran:false,notice:""};
   let toastTimer = null;
   const main = document.getElementById("main");
   const toastEl = document.getElementById("toast");
@@ -170,7 +175,8 @@
       {icon:"bug",name:"不具合を報告",note:"仕様との差を伝える"}];
     return '<a class="ux-entry" href="./ux.html"><span>NEW · 独立した修行</span><strong>UI/UXレビュー</strong><small>利用者の立場で操作し、違和感と改善案を考える →</small></a><section class="visual-home" aria-labelledby="launch-title">'+
       '<header class="gallery-intro"><div class="eyebrow">QA道場</div><h1 id="launch-title">さあ、修行を始めよう。</h1>'+
-      '<p>アプリを選んで、仕様を読み、実際に操作して不具合を見つけよう。</p></header>'+
+      '<p>アプリを選んで、仕様を読み、実際に操作して不具合を見つけよう。</p>'+
+      '<button type="button" class="intro-guide-link" data-nav="guide">'+(tutorialCompleted?'遊び方をもう一度確認':'初めての方へ · 3分で体験')+' <span aria-hidden="true">→</span></button></header>'+
       '<section class="gallery-section" aria-labelledby="gallery-title"><div class="gallery-heading"><h2 id="gallery-title">練習するアプリを選ぶ</h2>'+
       '<div class="gallery-controls"><span>全5アプリ</span><button class="gallery-arrow" data-action="gallery-prev" aria-label="前のアプリを見る">'+icon("chevron-left")+'</button>'+
       '<button class="gallery-arrow" data-action="gallery-next" aria-label="次のアプリを見る">'+icon("chevron-right")+'</button></div></div>'+
@@ -207,6 +213,40 @@
   function chapter(icon,title,subtitle) {
     return '<div class="chapter"><div class="chapter-icon">'+icon+'</div><div><strong>'+title+'</strong><p>'+subtitle+'</p></div></div>';
   }
+  function tutorialExercise() {
+    const spec='<div class="tutorial-spec"><span class="pill">練習用の仕様</span><h3>架空の文具ショップ</h3><ul><li>ノートは1冊400円</li><li>送料は1冊なら200円、<strong>2冊以上なら無料</strong></li><li>購入数量は1〜5冊の整数</li></ul></div>';
+    if(tutorial.phase===0) return '<div class="tutorial-stage"><div><span class="tutorial-kicker">01 · 仕様を読む</span><h3>まず「正しい動き」を知ろう</h3><p>テストでは、画面が動いたかどうかだけでなく、仕様どおり動いたかを確かめます。次の小さな仕様を読んでみましょう。</p><button class="btn btn-dark" data-action="tutorial-next">読んだので次へ →</button></div>'+spec+'</div>';
+    if(tutorial.phase===1) return '<div class="tutorial-stage"><div><span class="tutorial-kicker">02 · テストを考える</span><h3>送料が切り替わるのは何冊？</h3><p>「2冊以上なら送料無料」という仕様です。境界となる数量を選んでください。</p><div class="tutorial-choices"><button data-action="tutorial-pick" data-quantity="1">1冊</button><button data-action="tutorial-pick" data-quantity="2">2冊</button><button data-action="tutorial-pick" data-quantity="3">3冊</button></div><p class="tutorial-notice" role="status">'+esc(tutorial.notice)+'</p></div>'+spec+'</div>';
+    if(tutorial.phase===2) {
+      const qty=Number(tutorial.quantity),valid=Number.isInteger(qty)&&qty>=1&&qty<=5;
+      const subtotal=valid?qty*400:0,actualShipping=qty>2?0:200;
+      return '<div class="tutorial-stage"><div><span class="tutorial-kicker">03 · アプリを操作</span><h3>実際に数字を入れて確認しよう</h3><p>仕様の境界である<strong>2冊</strong>を入力し、「計算する」を押してください。操作結果を仕様と比べます。</p><div class="tutorial-mock"><div class="tutorial-mock-bar"><span>DEMO SHOP</span><span>練習用・本番記録とは別</span></div><label for="tutorial-quantity">ノートの購入数量</label><input type="number" id="tutorial-quantity" min="1" max="5" step="1" value="'+esc(tutorial.quantity)+'"><button class="btn btn-dark" data-action="tutorial-run">計算する →</button>'+
+        (tutorial.ran?'<div class="tutorial-receipt"><span>商品小計 <b>'+yen(subtotal)+'</b></span><span>送料 <b>'+yen(actualShipping)+'</b></span><span>合計 <b>'+yen(subtotal+actualShipping)+'</b></span></div>':'<p class="micro">計算結果はここに表示されます。</p>')+'</div><p class="tutorial-notice" role="status">'+esc(tutorial.notice)+'</p>'+
+        (tutorial.ran&&qty===2?'<button class="btn btn-primary" data-action="tutorial-next">結果を確認したので次へ →</button>':'')+'</div>'+spec+'</div>';
+    }
+    if(tutorial.phase===3) return '<div class="tutorial-stage"><div><span class="tutorial-kicker">04 · 不具合を報告</span><h3>「期待」と「実際」の差を伝えよう</h3><p>2冊の送料は、仕様では無料でした。操作結果を報告するなら、どちらが適切でしょうか？</p><div class="tutorial-choices vertical"><button data-action="tutorial-report" data-choice="correct"><strong>仕様と異なる</strong><small>2冊なら送料0円のはずが、200円と表示された。</small></button><button data-action="tutorial-report" data-choice="wrong"><strong>問題なし</strong><small>2冊で商品小計800円と表示された。</small></button></div><p class="tutorial-notice" role="status">'+esc(tutorial.notice)+'</p></div><div class="tutorial-contrast"><span>期待する結果</span><strong>送料 0円</strong><span>実際の結果</span><strong>送料 200円</strong><small>この差が報告すべき不具合です。</small></div></div>';
+    return '<div class="tutorial-finish"><div class="tutorial-finish-icon">✓</div><span class="tutorial-kicker">TUTORIAL COMPLETE</span><h3>チュートリアル完了！</h3><p>「仕様を読む → 試す値を考える → 操作する → 差を報告する」をひと通り体験できました。</p><p>本番では、答えが先に表示されません。自分で発見することが修行です。</p><div class="tutorial-finish-actions"><button class="btn btn-dark" data-action="guide-back">実際の修行へ進む →</button><button class="btn btn-outline" data-action="tutorial-restart">もう一度体験する</button></div></div>';
+  }
+  function guidePage() {
+    const stages=['仕様を読む','考えて選ぶ','操作して確かめる','差を報告する'];
+    return '<div class="guide-page"><header class="guide-hero"><div><span class="eyebrow">HOW TO PLAY · はじめてのQA道場</span><h1>不具合の見つけ方を、<br>まずは一度体験しよう。</h1><p>QA道場は、架空のアプリを操作してテストの考え方を学ぶ場所。初めてでも、短い練習から始められます。</p></div><button class="btn btn-outline btn-sm" data-action="guide-back">← 元の画面に戻る</button></header>'+
+      '<section class="guide-tutorial" aria-labelledby="tutorial-title"><div class="guide-section-title"><div><span class="eyebrow">TRY IT · 約3分</span><h2 id="tutorial-title">まずはミニチュートリアル</h2></div><span class="pill '+(tutorial.phase===4?'':'gray')+'">'+(tutorial.phase===4?'完了':'練習データはスコア対象外')+'</span></div>'+
+      '<ol class="tutorial-progress" aria-label="チュートリアルの進行">'+stages.map((label,i)=>'<li class="'+(tutorial.phase===i?'current':tutorial.phase>i?'finished':'')+'"><span>'+(tutorial.phase>i?'✓':i+1)+'</span><small>'+label+'</small></li>').join('')+'</ol>'+tutorialExercise()+'</section>'+
+      '<section class="guide-info" aria-labelledby="howto-title"><div class="guide-section-title"><div><span class="eyebrow">THE REAL TRAINING</span><h2 id="howto-title">本番の遊び方</h2></div></div><div class="guide-how-grid">'+
+      '<article><span class="guide-how-num">01</span><h3>アプリとモードを選ぶ</h3><p>ECサイト、会議室予約、会員登録などから題材を選びます。初めてなら、テスト設計型がおすすめです。</p></article>'+
+      '<article><span class="guide-how-num">02</span><h3>仕様からテストを考える</h3><p>仕様に書かれた正常動作や境界を読みます。設計型では「入力値・操作手順・期待結果」をケースとして登録します。</p></article>'+
+      '<article><span class="guide-how-num">03</span><h3>本物のように操作する</h3><p>模擬アプリに入力して実行。画面の結果と仕様を比較し、操作ログを確認します。意図的な不具合が隠れています。</p></article>'+
+      '<article><span class="guide-how-num">04</span><h3>不具合を報告・振り返る</h3><p>再現手順・期待結果・実際の結果を書いて報告。報告を1件登録すると、答え合わせで見逃した不具合も学べます。</p></article></div></section>'+
+      '<section class="guide-info" aria-labelledby="modes-title"><div class="guide-section-title"><div><span class="eyebrow">CHOOSE YOUR STYLE</span><h2 id="modes-title">3つの学び方</h2></div></div><div class="guide-mode-grid">'+
+      '<article><span class="guide-mode-mark">設計型</span><h3>考えてから操作する</h3><p>仕様 → テストケース作成 → 操作 → 不具合報告。テスト設計の基本を体系的に練習します。</p><button class="btn btn-outline btn-sm" data-action="guide-mode" data-mode="design">テスト設計型を選ぶ →</button></article>'+
+      '<article><span class="guide-mode-mark">探索型</span><h3>操作しながら発見する</h3><p>ケース作成は不要。仕様を見ながら自由に試し、気づきは探索メモへ残せます。</p><button class="btn btn-outline btn-sm" data-action="guide-mode" data-mode="explore">探索的テストを選ぶ →</button></article>'+
+      '<article><span class="guide-mode-mark">UI/UX</span><h3>使いやすさを見直す</h3><p>利用者の状況を想像し、画面の迷いや不便を記録。改善案も考える、独立した演習です。</p><a class="btn btn-outline btn-sm" href="./ux.html">UI/UXレビューへ →</a></article></div></section>'+
+      '<section class="guide-info guide-faq"><div class="guide-section-title"><div><span class="eyebrow">GOOD TO KNOW</span><h2>始める前に知っておくこと</h2></div></div>'+
+      '<details><summary>どんなテストケースを書けばいい？</summary><p>「何を試すか」「どう操作するか」「どうなれば正しいか」を具体的に書きます。例：2冊を指定して計算する → 送料が0円になる。正常系だけでなく、境界値や入力エラーも考えてみましょう。</p></details>'+
+      '<details><summary>報告が「未受理」になったら？</summary><p>選んだ観点の不具合が、操作ログでまだ観測されていない可能性があります。再現手順に沿って模擬アプリを動かし、結果と観点を確認してください。文章の内容そのものはAI採点していません。</p></details>'+
+      '<details><summary>スコアはどう決まる？</summary><p>テスト設計型は観点の種類（最大30点）、操作で観測した不具合（最大40点）、受理された報告（最大30点）。探索型は観測（最大50点）と受理報告（最大50点）です。文章の良し悪しは自動採点しません。</p></details>'+
+      '<details><summary>記録はどこに保存される？</summary><p>アプリ・モードごとに、このブラウザ内へ自動保存されます。アカウント同期はないため、端末変更やブラウザのデータ削除で失われます。「修行の記録」からJSONを書き出せます。チュートリアルは本番の記録に加算されません。</p></details></section></div>';
+  }
   function dojo() {
     const titles = ["まずは、仕様を読み解こう。","自分だけのテストを設計しよう。","アプリを実際に操作してみよう。","発見した不具合を報告しよう。"];
     const leads = ["何が正しい状態なのかを把握する。テストはそこから始まる。",
@@ -220,7 +260,7 @@
       tabs+='<button type="button" class="step-tab '+(step===id?"current":id<data.progressed?"done":"")+'" data-action="step" data-step="'+id+'" '+(blocked?'disabled title="テストケースを1件以上作成してください"':"")+'><span class="step-no">'+(id<data.progressed?"✓":i+1)+'</span><span>'+esc(STEPS[id])+'</span></button>';
     });
     const page=[specPage,designPage,labPage,reportPage][step]();
-    return '<div class="training-workspace training-step-'+step+'"><header class="training-title"><span class="app-symbol app-'+missionId+'">'+icon(HOME_APPS[missionId].icon)+'</span><div><span class="eyebrow">LEVEL '+level+' · '+(EXPLORATORY?'探索的テスト':'テスト設計型')+'</span><h1>'+esc(missionTitle)+'</h1></div><button class="btn btn-outline btn-sm" data-nav="dashboard">アプリを変更</button></header>'+
+    return '<div class="training-workspace training-step-'+step+'"><header class="training-title"><span class="app-symbol app-'+missionId+'">'+icon(HOME_APPS[missionId].icon)+'</span><div><span class="eyebrow">LEVEL '+level+' · '+(EXPLORATORY?'探索的テスト':'テスト設計型')+'</span><h1>'+esc(missionTitle)+'</h1></div><button class="btn btn-outline btn-sm guide-context-link" data-nav="guide">？ 遊び方</button><button class="btn btn-outline btn-sm" data-nav="dashboard">アプリを変更</button></header>'+
       '<nav class="training-navigation" aria-label="修行のステップ"><div class="steps '+(EXPLORATORY?'exploratory':'')+'">'+tabs+'</div></nav>'+
       '<header class="task-heading"><span class="task-icon">'+icon(['file-description','pencil','player-play','bug'][step])+'</span><div><span class="eyebrow">STEP '+(sequence.indexOf(step)+1)+' / '+sequence.length+'</span><h2>'+titles[step]+'</h2><p>'+leads[step]+'</p></div></header>'+
       (step?specReference():'')+page+'</div>';
@@ -448,7 +488,7 @@
       '<div class="alert info mt-20">このアプリにログインやクラウド同期はありません。ブラウザのデータ消去や端末変更で記録が失われます。必要に応じてJSONを書き出してください。</div>';
   }
   function render() {
-    main.innerHTML = view === "dashboard" ? dashboard() : view === "records" ? recordsPage() : dojo();
+    main.innerHTML = view === "dashboard" ? dashboard() : view === "records" ? recordsPage() : view === "guide" ? guidePage() : dojo();
     if(view==="dojo" && main.querySelectorAll) {
       main.querySelectorAll(".help-panel").forEach(panel=>{
         const heading=panel.querySelector("h3");
@@ -461,7 +501,7 @@
       });
     }
     document.getElementById("breadcrumb").textContent =
-      view === "dashboard" ? "修行" : view === "records" ? "修行の記録" : missionTitle;
+      view === "dashboard" ? "修行" : view === "records" ? "修行の記録" : view === "guide" ? "遊び方・チュートリアル" : missionTitle;
     document.querySelectorAll(".nav-link").forEach(item =>
       item.classList.toggle("active",(view === "dojo" ? "dashboard" : view) === item.getAttribute("data-nav")));
     const gallery=document.getElementById("mission-gallery");
@@ -469,10 +509,13 @@
       const tile=gallery.querySelector('[aria-current="true"]');
       if(tile) gallery.scrollLeft=Math.max(0,tile.offsetLeft-gallery.offsetLeft-12);
     }
-    save();
+    if(view!=="guide") save();
   }
   function toView(next) {
-    view = next === "records" ? "records" : next === "dojo" ? "dojo" : "dashboard";
+    if(next==="guide") {
+      if(view!=="guide") guideReturnView=view;
+      view="guide";
+    } else view = next === "records" ? "records" : next === "dojo" ? "dojo" : "dashboard";
     render();
     window.scrollTo({top:0,behavior:"smooth"});
   }
@@ -610,6 +653,10 @@
     const mock=e.target.closest("[data-mock]");if(mock)syncMock(mock);
   });
   document.addEventListener("input",e => {
+    if(e.target.id==="tutorial-quantity") {
+      tutorial.quantity=e.target.value;tutorial.ran=false;tutorial.notice="";
+      return;
+    }
     const mock=e.target.closest("[data-mock]");if(mock)syncMock(mock);
   });
   document.addEventListener("submit",e => {
@@ -624,6 +671,43 @@
     if(!actionEl) return;
     e.preventDefault();
     switch(actionEl.getAttribute("data-action")){
+      case "guide-back":toView(guideReturnView);break;
+      case "guide-mode": {
+        const explore=actionEl.getAttribute("data-mode")==="explore";
+        window.location.href=missionUrl(missionId,explore);
+        break;
+      }
+      case "tutorial-restart":
+        tutorial={phase:0,quantity:"1",ran:false,notice:""};render();break;
+      case "tutorial-next":
+        if(tutorial.phase===0||tutorial.phase===2&&tutorial.ran&&Number(tutorial.quantity)===2) {
+          tutorial.phase++;tutorial.notice="";render();
+        }
+        break;
+      case "tutorial-pick":
+        if(tutorial.phase!==1)break;
+        if(actionEl.getAttribute("data-quantity")==="2") {
+          tutorial.phase=2;tutorial.quantity="2";tutorial.notice="";
+        } else tutorial.notice="ヒント：送料無料に切り替わる、ちょうどその数を選ぼう。";
+        render();break;
+      case "tutorial-run": {
+        if(tutorial.phase!==2)break;
+        const qty=Number(tutorial.quantity);
+        if(tutorial.quantity.trim()===""||!Number.isInteger(qty)||qty<1||qty>5) {
+          tutorial.ran=false;tutorial.notice="数量は1〜5の整数で入力してください。";
+        } else {
+          tutorial.ran=true;
+          tutorial.notice=qty===2 ? "仕様では2冊以上は送料無料。表示された送料と比べてみよう。" : "計算できました。送料の境界となる2冊でも試してみよう。";
+        }
+        render();break;
+      }
+      case "tutorial-report":
+        if(tutorial.phase!==3)break;
+        if(actionEl.getAttribute("data-choice")==="correct") {
+          tutorial.phase=4;tutorial.notice="";tutorialCompleted=true;
+          try {localStorage.setItem(TUTORIAL_KEY,"yes");} catch (_) {}
+        } else tutorial.notice="商品小計は仕様どおりです。送料の違いに注目しよう。";
+        render();break;
       case "category-chip": {
         const form=actionEl.getAttribute("data-form");
         const select=document.getElementById(form+"-category");

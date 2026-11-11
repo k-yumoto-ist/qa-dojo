@@ -15,13 +15,15 @@ function app(id,explore,storage=new Map()) {
     FormData:class{constructor(form){this.values=form.values;}get(k){return this.values[k]||'';}}};
   vm.runInNewContext(source('scenarios.js'),context);
   vm.runInNewContext(source('app.js'),context);
-  const click=attrs=>events.click({preventDefault(){},target:{closest:selector=>selector==='[data-action]'?{getAttribute:k=>attrs[k]||null}:null}});
+  const click=attrs=>events.click({preventDefault(){},target:{closest:selector=>selector==='[data-action]'&&attrs['data-action']||selector==='[data-nav]'&&attrs['data-nav']?{getAttribute:k=>attrs[k]||null}:null}});
   return {
     html:()=>elements.get('main').innerHTML,
     click:(action,extra={})=>click({'data-action':action,...extra}),
+    nav:name=>click({'data-nav':name}),
     step:n=>click({'data-action':'step','data-step':String(n)}),
     location:()=>location.href,
     input:(key,value,type='text')=>events.input({target:{closest:()=>({getAttribute:()=>key,value,type,checked:value==='yes'})}}),
+    tutorialInput:value=>events.input({target:{id:'tutorial-quantity',value}}),
     submit:(id,values)=>events.submit({preventDefault(){},target:{id,values}}),
     storage,key:`qa-dojo:${explore?'explore':'training'}:v1${id==='checkout'?'':':'+id}`,
     stored(){return JSON.parse(storage.get(this.key));}
@@ -99,6 +101,33 @@ test('visual gallery links preserve app/mode and saved progress; guidance stays 
   const other=app('checkout',true,storage);
   assert.ok(other.html().includes('会議室予約、進捗50%を選ぶ'));
   assert.ok(app('checkout',false,storage).html().includes('会議室予約、進捗0%を選ぶ'));
+});
+test('newcomer guide runs an isolated hands-on example without changing training records',()=>{
+  const storage=new Map(),a=app('checkout',false,storage);
+  const original=storage.get(a.key);
+  assert.ok(a.html().includes('初めての方へ · 3分で体験'));
+  a.nav('guide');
+  assert.ok(a.html().includes('ミニチュートリアル'));
+  assert.ok(a.html().includes('3つの学び方'));
+  a.click('tutorial-next');
+  a.click('tutorial-pick',{'data-quantity':'1'});
+  assert.ok(a.html().includes('ちょうどその数'));
+  a.click('tutorial-pick',{'data-quantity':'2'});
+  assert.ok(a.html().includes('DEMO SHOP'));
+  a.tutorialInput('3');a.click('tutorial-run');
+  assert.ok(!a.html().includes('data-action="tutorial-next"'));
+  a.tutorialInput('2');a.click('tutorial-run');
+  assert.ok(a.html().includes('送料 <b>¥200</b>'));
+  a.click('tutorial-next');
+  a.click('tutorial-report',{'data-choice':'wrong'});
+  assert.ok(a.html().includes('商品小計は仕様どおり'));
+  a.click('tutorial-report',{'data-choice':'correct'});
+  assert.ok(a.html().includes('チュートリアル完了！'));
+  assert.equal(storage.get('qa-dojo:tutorial:completed:v1'),'yes');
+  assert.equal(storage.get(a.key),original);
+  a.click('guide-back');
+  assert.ok(a.html().includes('遊び方をもう一度確認'));
+  assert.ok(!a.stored().logs.length);
 });
 test('feedback is gated until first report; explanations cover found and missed defects',()=>{
   const storage=new Map(),a=app('booking',true,storage);
